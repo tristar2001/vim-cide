@@ -1,24 +1,24 @@
 # Description
-Plugin to make VIM an IDE.
+Powerful searching and navigation plugin to make VIM an IDE (based on ag and cscope).
 
 # Features
 * Text search in multiple files (based on silver-searcher ag)
-  * Support literal or regex base pattern
+  * Support literal or regex based patterns
   * Support user specified file types
-  * Case-sensitive and whole-word option configurable
+  * Configurable search options (case-sensitive, whole-word, regex, recursive)
 * cscope wrapper
   * Find symbol by name
   * Find callers
   * Find callees
 * Call-tree generator
-  * Generate caller tree
-  * Generate callee tree
+  * Caller tree
+  * Callee tree
 * Search history
   * All search history is preserved and displayed in a seperate buffer
   * Last browsed position of each search is preserved that helps to navigate between multiple search results
 
 # Work flow
-* Start a search
+* Start a search with option configuration
   * \<Leader\>g to search a symbol with ag (silver searcher), configure file types, base directory, and other options (case, whole-word, etc.)
   * \<Leader\>s to search a symbol by cscope
 * Search with last configured options
@@ -26,7 +26,7 @@ Plugin to make VIM an IDE.
 * Navigate between search results
   * Double-click items in "QResulst" (search result) window to view the code
 * Navigate between history search requests
-  * Double-click items in "QHistory" (Search History) window to for previous search results
+  * Double-click items in "QHistory" (Search History) window for previous search results
 
 # Default Keymaps
 Note the default Leader key is '\'
