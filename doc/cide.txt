@@ -1,0 +1,14 @@
+*cide.txt* vim CIDE plugin
+
+Author:  Jun Huang
+License: MIT
+
+INTRODUCTION                                    *cide*
+
+TBD
+
+COMMANDS                                        *cide-commands*
+
+TBD
+
+ABOUT                                           *cide-about*
