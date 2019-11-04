@@ -2,7 +2,7 @@
 Plugin to make VIM an IDE.
 
 # Features
-* Text search in multiple files (based on ag)
+* Text search in multiple files (based on silver-searcher ag)
   * Support literal or regex base pattern
   * Support user specified file types
   * Case-sensitive and whole-word option configurable
@@ -16,6 +16,17 @@ Plugin to make VIM an IDE.
 * Search history
   * All search history is preserved and displayed in a seperate buffer
   * Last browsed position of each search is preserved that helps to navigate between multiple search results
+
+# Work flow
+* Start a search
+  * \<Leader\>g to search a symbol with ag (silver searcher), configure file types, base directory, and other options (case, whole-word, etc.)
+  * \<Leader\>s to search a symbol by cscope
+* Search with last configured options
+  * \<Leader\>l
+* Navigate between search results
+  * Double-click items in "QResulst" (search result) window to view the code
+* Navigate between history search requests
+  * Double-click items in "QHistory" (Search History) window to for previous search results
 
 # Default Keymaps
 Note the default Leader key is '\'
@@ -34,9 +45,14 @@ Note the default Leader key is '\'
 | \<Leader\>e |  :Icalleetree<CR>  | Draw callee tree of current symbol |
 
 # Installation
-* This plugin can be downloaded from [https://github.com/tristar2001/vim-cide](https://github.com/tristar2001/vim-cide)
-* ag can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
-* cscope can be downloaded from [http://cscope.sourceforge.net/](http://cscope.sourceforge.net/)
+* Dependencies
+  * silver seracher (ag) can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
+  * cscope can be downloaded from [http://cscope.sourceforge.net/](http://cscope.sourceforge.net/)
+* Manual installation
+  * Download this plugin from [https://github.com/tristar2001/vim-cide](https://github.com/tristar2001/vim-cide)
+  * Copy downloaded cide.vim to vimfiles/plugin/ folder
+* Vundle installation
+  * TBD
 
 # Configuration
 * The following global variables can be configured from .vimrc or \_vimrc 

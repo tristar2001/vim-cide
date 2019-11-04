@@ -88,8 +88,8 @@ function! s:InitVars()
     " Constant strings
     let s:CIDE_CFG_FNAME                = '_cide.cfg'
     let s:CSCOPE_OUT_FNAME              = 'cscope.out'
-    let s:CIDE_WIN_TITLE_QUERYLIST      = "QList"
-    let s:CIDE_WIN_TITLE_QUERYRES       = "QueryResult"
+    let s:CIDE_WIN_TITLE_QUERYLIST      = "QHistory"
+    let s:CIDE_WIN_TITLE_QUERYRES       = "QResult"
     let s:CIDE_WIN_TITLE_CALLEETREE     = "Callees"
     let s:CIDE_WIN_TITLE_CALLERTREE     = "Callers"
     let s:CIDE_WIN_TITLE_GREPOPTIONS    = "Options"
