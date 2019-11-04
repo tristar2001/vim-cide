@@ -7,15 +7,15 @@ Powerful searching and navigation plugin to make VIM an IDE (based on ag and csc
   * Support user specified file types
   * Configurable search options (case-sensitive, whole-word, regex, recursive)
 * cscope wrapper
-  * Find symbol by name
-  * Find callers
-  * Find callees
+  * Find all references to a symbol
+  * Find all callers of a symbol (function only)
+  * Find all callees of a symbol (function only)
 * Call-tree generator
-  * Caller tree
-  * Callee tree
+  * Caller tree of a symbol
+  * Callee tree of a symbol
 * Search history
-  * All search history is preserved and displayed in a seperate buffer
-  * Last browsed position of each search is preserved that helps to navigate between multiple search results
+  * The history of all search requests (cscope or ag) is preserved and displayed in QHistirt buffer
+  * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results easier
 
 # Work flow
 * Start a search with option configuration
