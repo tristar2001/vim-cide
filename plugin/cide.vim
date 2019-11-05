@@ -204,8 +204,9 @@ function! s:RebuildCscopeSub()
         return 0
     endif
     let oldpath = s:ChangeDirectory(curpath0)
-    let cmd = '"'.s:cide_shell_find . "\" . -name \"*.[ch]\" -o -name \"*.cpp\" -o -name \"*.cc\" | grep -v \" \" | tee \"" . curpath0 . "/cscope.files\""
+    let cmd = '"'.s:cide_shell_find . "\" . -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\)\""
     let cmd_out = system(cmd)
+    call s:SaveStrToFile(cmd_out, curpath0 . "/cscope.files")
     let cmd_out = system(s:cide_shell_cscope. " -b -R -u")
     call s:ChangeDirectory(oldpath)
     let s:cide_cur_cscope_out_dir = curpath0
@@ -299,6 +300,8 @@ function! s:PopulateQueryResult(qidx)
     let str = '===> '. s:QueryCommand{a:qidx}." ".s:QueryPattern{a:qidx} . " (" . nLines . " in total)"
     let str = str . ' under "' . s:QueryBaseDir{a:qidx} . '"'
     call append(0, str)
+    " silent! exec "%s/\r//g"
+    silent! exec ":%s/\r$//"
     silent! setlocal nomodifiable
     exec 1
     redraw
