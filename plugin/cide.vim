@@ -24,6 +24,13 @@
 " OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 " SOFTWARE.
 
+" Load once
+if exists("g:cide_loaded")
+    finish
+endif
+let g:cide_loaded = 1
+set shellslash
+
 function! s:MsgInfo(msg)
     call confirm('[C-IDE-INFO] '.a:msg.' ')
 endfunction
@@ -47,13 +54,6 @@ function! s:ChangeDirectory(folder)
 endfunction
 
 function! s:InitVars()
-    " Load once
-    if exists("g:cide_loaded")
-        finish
-    endif
-    let g:cide_loaded = 1
-
-    set shellslash
     " Initialize global configurable variable default
     if has('win32')
         let default_cide_shell_find = ''
@@ -312,8 +312,6 @@ function! s:PopulateQueryResult(qidx)
 endfunction
 
 function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
-    "return s:cscope_cmd_out
-    "return s:cscope_pattern
     if (a:cmd_num == "?" && a:cmd_num!=0)
         call s:MsgError("GetCscopeResult(): invalid cmd_num=".a:cmd_num)
         return
@@ -336,8 +334,7 @@ function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
     endif
 
     let oldpath = s:ChangeDirectory(s:cide_cur_cscope_out_dir)
-    " let cscope_cmd = "cscope -R -L -".a:cmd_num." ".pattern." | sort"
-    let cscope_cmd = "cscope -R -L -".a:cmd_num." ".pattern
+    let cscope_cmd = '"' . s:cide_shell_cscope . '" -R -L -'.a:cmd_num.' '.pattern
     let @z = system(cscope_cmd)
     let test = strpart(@z,1,5)
     call s:ChangeDirectory(oldpath)
