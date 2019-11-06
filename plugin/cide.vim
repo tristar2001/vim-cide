@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.7
-" Last Modified:    10/02/2019
+" Version:          0.8
+" Last Modified:    11/05/2019
 "
 " MIT License
 " 
@@ -2226,7 +2226,6 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CscopeCase             :CscopeCase<CR>
 :menu <silent> &CIDE.Save+Backup            :SaveBackup<CR>
 :menu <silent> &CIDE.Shell\ Commander       :ShellCommander<CR>
-:menu <silent> &CIDE.version\ 0\.7          :
 
 " Define menu items under CodeTree
 :menu <silent> &CIDE.-SepCodeTree-          :
@@ -2238,6 +2237,8 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteSubtree        :DeleteSubtree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
+:menu <silent> &CIDE.-SepVersion-          :
+:menu <silent> &CIDE.version\ 0\.8          :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
