@@ -18,12 +18,12 @@ Powerful searching and navigation plugin that makes VIM an IDE (based on ag and 
   * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results much easier
   
 # Highlights
-Traditional grep-like search is one dimentional, and the subsequent grep results overwrites the previous one. This plugin essentially implements a two-level navigation tree
+Traditional grep-like search is one dimensional, and the subsequent grep results overwrites the previous one. This plugin essentially implements a two-level navigation tree
 * The first level is the history of past search requests displayed in the QHistory window (as shown in the screenshot), in which the user can easily trace back what keywords/symbols have been searched earlier
 * The second level is the traditional grep/cscope results displayed in the QResult window, where the user can navigate among the results of a particular search
 * The user can easily navigate across the two levels
 
-This approach is especially useful for studying and navigation inside a large or unfamliar code base.
+This approach is especially useful for studying and navigation inside a large or unfamiliar code base.
 
 # Example work flow
 * Start a search with option configuration
@@ -54,7 +54,7 @@ Note the default <Leader> key is '\'
 
 # Installation
 * Dependencies
-  * silver seracher (ag): can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
+  * silver searcher (ag): can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
   * cscope: can be downloaded from [http://cscope.sourceforge.net/](http://cscope.sourceforge.net/)
   * find: the windows version can be found under C:/Program Files/Git/usr/bin/find.exe if Git was installed
 * Manual installation
