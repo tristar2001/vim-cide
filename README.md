@@ -16,11 +16,19 @@ Powerful searching and navigation plugin that makes VIM an IDE (based on ag and 
 * Search history
   * The history of all search requests (cscope or ag) is preserved and displayed in QHistory buffer
   * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results much easier
+  
+# Highlights
+Traditional grep-like search is one dimentional, and the subsequent grep results overwrites the previous one. This plugin essentially implements a two-level navigation tree
+* The first level is the history of past search requests displayed in the QHistory window (as shown in the screenshot), in which the user can easily trace back what keywords/symbols have been searched earlier
+* The second level is the traditional grep/cscope results displayed in the QResult window, where the user can navigate among the results of a particular search
+* The user can easily navigate across the two levels
 
-# Work flow
+This approach is especially useful for studying and navigation inside a large or unfamliar code base.
+
+# Example work flow
 * Start a search with option configuration
   * \<Leader\>g to search a symbol with ag (silver searcher), configure file types, base directory, and other options (case, whole-word, etc.)
-  * \<Leader\>s to search a symbol by cscope
+  * \<Leader\>s to search a symbol with cscope
 * Search with last configured options
   * \<Leader\>l
 * Navigate between search results inside the `QResult' window
@@ -61,8 +69,9 @@ Note the default <Leader> key is '\'
   * Execute :PluginInstall
 
 # Configuration
-* The following global variables can be configured from .vimrc or \_vimrc 
-Note this step is optional. And it's usually needed when any of the following commands (like find.exe) is not in searchable paths
+* The following global variables can be configured from .vimrc or \_vimrc .
+
+Note this step is **optional**. And it's usually needed when any of the following commands (like find.exe) is not present in any searchable path.
 
 ```vim
 " C-IDE configuration
