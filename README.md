@@ -1,5 +1,5 @@
 # Description
-Powerful searching and navigation plugin to make VIM an IDE (based on ag and cscope).
+Powerful searching and navigation plugin that makes VIM an IDE (based on ag and cscope).
 
 # Features
 * Text search in multiple files (based on silver-searcher ag)
@@ -14,8 +14,8 @@ Powerful searching and navigation plugin to make VIM an IDE (based on ag and csc
   * Caller tree of a symbol
   * Callee tree of a symbol
 * Search history
-  * The history of all search requests (cscope or ag) is preserved and displayed in QHistirt buffer
-  * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results easier
+  * The history of all search requests (cscope or ag) is preserved and displayed in QHistory buffer
+  * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results much easier
 
 # Work flow
 * Start a search with option configuration
@@ -23,13 +23,13 @@ Powerful searching and navigation plugin to make VIM an IDE (based on ag and csc
   * \<Leader\>s to search a symbol by cscope
 * Search with last configured options
   * \<Leader\>l
-* Navigate between search results
-  * Double-click items in "QResulst" (search result) window to view the code
+* Navigate between search results inside the `QResult' window
+  * Double-click items in "QResulst" (search result) window to view the corresponding code
 * Navigate between history search requests
   * Double-click items in "QHistory" (Search History) window for previous search results
 
 # Default Keymaps
-Note the default Leader key is '\'
+Note the default <Leader> key is '\'
 
 | Keymap      |  Comand            |  Description
 |-------------|--------------------|------------------------------------|
@@ -48,7 +48,7 @@ Note the default Leader key is '\'
 * Dependencies
   * silver seracher (ag): can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
   * cscope: can be downloaded from [http://cscope.sourceforge.net/](http://cscope.sourceforge.net/)
-  * find: windows version can be found under C:/Program Files/Git/usr/bin/find.exe if Git was installed
+  * find: the windows version can be found under C:/Program Files/Git/usr/bin/find.exe if Git was installed
 * Manual installation
   * Download this plugin from [https://github.com/tristar2001/vim-cide](https://github.com/tristar2001/vim-cide)
   * Copy downloaded cide.vim to vimfiles/plugin/ folder
