@@ -37,20 +37,20 @@ This approach is especially useful for studying and navigation inside a large or
   * Double-click items in "QHistory" (Search History) window for previous search results
 
 # Default Keymaps
-Note the default <Leader> key is '\'
+Note the default <Leader> key is '\\'
 
 | Keymap      |  Comand            |  Description
 |-------------|--------------------|------------------------------------|
-| \<Leader\>s |  :Isymb<CR>        | Find symbol with                   |
-| \<Leader\>d |  :Idefi<CR>        | Find global definition             |
-| \<Leader\>c |  :Icall<CR>        | Find callees                       |
-| \<Leader\>b |  :Icaby<CR>        | Find callers                       |
-| \<Leader\>f |  :Ifile<CR>        | Find files by name                 |
-| \<Leader\>i |  :Iincl<CR>        | Find include files                 |
-| \<Leader\>l |  :Ilast<CR>        | Find with last grep options        |
-| \<Leader\>g |  :Igrep<CR>        | Find with grep (ag)                |
-| \<Leader\>r |  :Icallertree<CR>  | Draw caller tree of current symbol |
-| \<Leader\>e |  :Icalleetree<CR>  | Draw callee tree of current symbol |
+| \<Leader\>s |  :Isymb\<CR\>        | Find symbol with                   |
+| \<Leader\>d |  :Idefi\<CR\>        | Find global definition             |
+| \<Leader\>c |  :Icall\<CR\>        | Find callees                       |
+| \<Leader\>b |  :Icaby\<CR\>        | Find callers                       |
+| \<Leader\>f |  :Ifile\<CR\>        | Find files by name                 |
+| \<Leader\>i |  :Iincl\<CR\>        | Find include files                 |
+| \<Leader\>l |  :Ilast\<CR\>        | Find with last grep options        |
+| \<Leader\>g |  :Igrep\<CR\>        | Find with grep (ag)                |
+| \<Leader\>r |  :Icallertree\<CR\>  | Draw caller tree of current symbol |
+| \<Leader\>e |  :Icalleetree\<C\R>  | Draw callee tree of current symbol |
 
 # Installation
 * Dependencies
