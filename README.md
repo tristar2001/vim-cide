@@ -50,7 +50,7 @@ Note the default <Leader> key is '\\'
 | \<Leader\>l |  :Ilast\<CR\>        | Find with last grep options        |
 | \<Leader\>g |  :Igrep\<CR\>        | Find with grep (ag)                |
 | \<Leader\>r |  :Icallertree\<CR\>  | Draw caller tree of current symbol |
-| \<Leader\>e |  :Icalleetree\<C\R>  | Draw callee tree of current symbol |
+| \<Leader\>e |  :Icalleetree\<CR\>  | Draw callee tree of current symbol |
 
 # Installation
 * Dependencies
