@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
 " Version:          0.8
-" Last Modified:    11/05/2019
+" Last Modified:    11/12/2019
 "
 " MIT License
 " 
@@ -80,7 +80,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_ag',       'ag')
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
-    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a"])
+    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$" --hidden', '-G "\.(d)$" --hidden'])
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -204,9 +204,11 @@ function! s:RebuildCscopeSub()
         return 0
     endif
     let oldpath = s:ChangeDirectory(curpath0)
+    let cscope_files = curpath0 . "/cscope.files"
     let cmd = '"'.s:cide_shell_find . "\" . -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\)\""
+    let cmd = input("Generating " . cscope_files . ': ' , cmd)
     let cmd_out = system(cmd)
-    call s:SaveStrToFile(cmd_out, curpath0 . "/cscope.files")
+    call s:SaveStrToFile(cmd_out, cscope_files) 
     let cmd_out = system(s:cide_shell_cscope. " -b -R -u")
     call s:ChangeDirectory(oldpath)
     let s:cide_cur_cscope_out_dir = curpath0

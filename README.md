@@ -79,7 +79,7 @@ let g:cide_shell_cscope   = 'cscope'
 let g:cide_shell_ag       = 'ag'
 let g:cide_shell_find     = 'C:/Program Files/Git/usr/bin/find.exe'
 let g:cide_shell_date     = 'date /T'
-let g:cide_grep_filespecs = ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk|mak)$"', "--cpp", "-cc", "--matlab", "--vim", "-a"]
+let g:cide_grep_filespecs = ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk|mak)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$" --hidden', '-G "\.(d)$" --hidden'])
 ```
 # Screenshots
 ![main](https://github.com/tristar2001/images/blob/master/vim-cide/main.png)
