@@ -45,6 +45,7 @@ function! s:InitVarGlobal(var_name, var_default)
     else
         let s:{a:var_name} = a:var_default
     end
+    " call s:MsgInfo(a:var_name . '=' .  s:{a:var_name})
 endfunction
 
 function! s:ChangeDirectory(folder)
@@ -77,10 +78,19 @@ function! s:InitVars()
 
     " Initialize global configurable variables only when it's not defined
     call s:InitVarGlobal('cide_shell_cscope',   'cscope')
-    call s:InitVarGlobal('cide_shell_ag',       'ag')
+    call s:InitVarGlobal('cide_shell_grep',     'rg')
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
-    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$" --hidden', '-G "\.(d)$" --hidden'])
+
+    if (s:cide_shell_grep == 'rg')
+        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
+        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c, *.cc, *.cpp, *.h, *.hpp, *.mak, *.mk" --sort path')
+        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
+    else
+        call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
+        call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
+    endif
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -104,6 +114,7 @@ function! s:InitVars()
     let s:grep_opt_whole                = 0
     let s:grep_opt_icase                = 1
     let s:grep_opt_recurse              = 1
+    let s:grep_opt_hidden               = 0
     let s:grep_opt_regex                = 0
     let s:grep_opt_files                = s:cide_grep_filespecs[0]
     
@@ -1841,33 +1852,68 @@ function! s:RunGrepSub()
 endfunction
 
 function! s:RunGrepSubSub(grep_files)
-    let grep_opt    = "--numbers --nocolor --nogroup"
-    if (s:grep_opt_whole == 1)
-        let grep_opt = grep_opt." --word-regexp"    " -w
-    else
-    endif
-    if (s:grep_opt_icase == 0)
-        let grep_opt = grep_opt." --ignore-case"    " -i
-    else
-        let grep_opt = grep_opt." --case-sensitive" " -s
-    endif
-    if (s:grep_opt_regex == 1)
-        " let grep_opt = grep_opt."e"
-    else
-        let grep_opt = grep_opt." --literal"
-    endif
-    if (s:grep_opt_recurse == 1)
-        let grep_opt = grep_opt." --recurse"        " -r
-    else
-        let grep_opt = grep_opt." --norecurse"      " -n
-    endif
+    let grep_opt    = s:cide_grep_options
 
+    if (s:cide_shell_grep == 'rg')
+        if (s:grep_opt_whole == 1)
+            let grep_opt = grep_opt." --word-regexp"    " -w
+        else
+        endif
+        if (s:grep_opt_icase == 0)
+            let grep_opt = grep_opt." --ignore-case"    " -i
+        else
+            let grep_opt = grep_opt." --case-sensitive" " -s
+        endif
+        if (s:grep_opt_regex == 1)
+            " let grep_opt = grep_opt."e"
+        else
+            let grep_opt = grep_opt." --fixed-strings"   "-F
+        endif
+        if (s:grep_opt_recurse == 1)
+            " let grep_opt = grep_opt." --recurse"      " -r
+        else
+            let grep_opt = grep_opt." --max-depth 0"    " -n
+        endif
+        if (s:grep_opt_hidden == 1)
+            let grep_opt = grep_opt." --hidden"         " -r
+        else
+            "
+        endif
+    elseif (s:cide_shell_grep == 'ag')
+        if (s:grep_opt_whole == 1)
+            let grep_opt = grep_opt." --word-regexp"    " -w
+        else
+        endif
+        if (s:grep_opt_icase == 0)
+            let grep_opt = grep_opt." --ignore-case"    " -i
+        else
+            let grep_opt = grep_opt." --case-sensitive" " -s
+        endif
+        if (s:grep_opt_regex == 1)
+            " let grep_opt = grep_opt."e"
+        else
+            let grep_opt = grep_opt." --literal"
+        endif
+        if (s:grep_opt_recurse == 1)
+            let grep_opt = grep_opt." --recurse"        " -r
+        else
+            let grep_opt = grep_opt." --norecurse"      " -n
+        endif
+        if (s:grep_opt_hidden == 1)
+            let grep_opt = grep_opt." --hidden"         " -r
+        else
+            "
+        endif
+    else
+        call s:MsgError("invalid s:cide_shell_grep (". s:cide_shell_grep . ")")
+    endif
+ 
     let pattern  = s:CIDE_SHELL_QUOTE_CHAR . s:grep_pattern . s:CIDE_SHELL_QUOTE_CHAR
     " let filespec = s:CIDE_SHELL_QUOTE_CHAR . a:grep_files . s:CIDE_SHELL_QUOTE_CHAR
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = s:cide_shell_ag.' '.grep_opt.' '.filespec.' '.pattern
+    let cmd = s:cide_shell_grep.' '.grep_opt.' '.filespec.' '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
@@ -1883,24 +1929,41 @@ function! s:RunGrepSubSub(grep_files)
     return 1
 endfunction
 
+"                           opname   keypos  row checkpos    opval   opt_var
+let s:option_list = [   
+                        \ ['case',   3,      0,  0,          0,      's:grep_opt_icase'   ],
+                        \ ['whole',  1,      0,  0,          0,      's:grep_opt_whole'   ],
+                        \ ['regex',  2,      0,  0,          0,      's:grep_opt_regex'   ],
+                        \ ['recur',  1,      0,  0,          0,      's:grep_opt_recurse' ],
+                        \ ['hidden', 1,      0,  0,          0,      's:grep_opt_hidden'  ]
+                        \ ]
+
 function! s:GetOptionStr()
-    let caseopt = " "
-    let wordopt = " "
-    let regeopt = " "
-    let recuopt = " "
-    if (s:grep_opt_icase == 1)
-        let caseopt = "X"
-    endif
-    if (s:grep_opt_whole == 1)
-        let wordopt = "X"
-    endif
-    if (s:grep_opt_regex == 1)
-        let regeopt = "X"
-    endif
-    if (s:grep_opt_recurse == 1)
-        let recuopt = "X"
-    endif
-    let str = " case[".caseopt."] whole-word[".wordopt."] regexp[".regeopt."] recursive[".recuopt."]       <<OK>>  <<Cancel>>"
+    let str = ''
+    let i = 0
+    while i < len(s:option_list)
+        let op_name = s:option_list[i][0]
+        let s:option_list[i][3] = len(str) + len(op_name) + 3 " checkpos
+
+        let opt_val = ' '
+        let opt_var = s:option_list[i][5]
+        exec 'let tmp = ' . opt_var
+        if (tmp == 1)
+            let opt_val = 'X'
+        endif
+
+        let str = str . ' ' . op_name . '[' . opt_val . ']'
+        let i = i + 1
+    endwhile
+    let str = str . '    <<Ok>>  <<Cancel>>'
+    " let str = " case[".caseopt."] Whole[".wordopt."] rEgex[".regeopt."] Recur[".recuopt."]       <<Ok>>  <<Cancel>>"
+  " let str =     [
+  "          \   "[" . caseopt . "] Case" , 
+  "          \   "[" . wordopt . "] Whole",
+  "          \   "[" . regeopt . "] Regex",
+  "          \   "[" . recuopt . "] Recur",
+  "          \   " <<OK>>  <<Cancel>>"
+  "          \   ]
     return str
 endfunction
 
@@ -1913,8 +1976,10 @@ function! s:UpdateGrepOptWin(cl,val)
     else
         let val = 'X'
     endif
-    exec "normal ".a:cl."|"
-    exec "normal r".val
+    let cl_prev = a:cl - 1
+    let oldline = getline('.')
+    let newline = oldline[0:(a:cl-2)].val.oldline[(a:cl):]
+    call setline(line('.'), newline)
     setlocal nomodifiable
 endfunction
 
@@ -1926,11 +1991,18 @@ let s:grep_opt_name_recurse_1 = 'r'
 let s:grep_opt_name_recurse_0 = ''
 let s:grep_opt_name_regex_1 = 'e'
 let s:grep_opt_name_regex_0 = ''
+let s:grep_opt_name_hidden_1 = 'h'
+let s:grep_opt_name_hidden_0 = ''
 
 function! s:AfterQuery(pat, cmdname)
     let tmpfile = tempname()
     call s:SaveStrToFile(s:cscope_cmd_out, tmpfile)
-    let casechar = s:grep_opt_name_icase_{s:grep_opt_icase}.s:grep_opt_name_whole_{s:grep_opt_whole}.s:grep_opt_name_recurse_{s:grep_opt_recurse}.s:grep_opt_name_regex_{s:grep_opt_regex}
+    let casechar = s:grep_opt_name_icase_{s:grep_opt_icase}.
+                \  s:grep_opt_name_whole_{s:grep_opt_whole}.
+                \  s:grep_opt_name_recurse_{s:grep_opt_recurse}.
+                \  s:grep_opt_name_regex_{s:grep_opt_regex}.
+                \  s:grep_opt_name_hidden_{s:grep_opt_hidden}
+
     call s:InsertQuery(1, a:cmdname." ".casechar, a:pat, 0, tmpfile, s:grep_opt_dir)
     call s:GotoCodeWindow()
 endfunction
@@ -1950,45 +2022,51 @@ function! s:DoGrepFromOptionWin()
     call s:DoGrep()
 endfunction
 
-function! s:GrepOptionToggleCase()
-    let s:grep_opt_icase = 1 - s:grep_opt_icase 
-    call s:UpdateGrepOptWin(7, s:grep_opt_icase)
+function! s:GrepOptionWinTab()
+    echo "tab" 
+    " redraw
+    " call s:DoGrep()
 endfunction
 
-function! s:GrepOptionToggleWhole()
-    let s:grep_opt_whole = 1 - s:grep_opt_whole 
-    call s:UpdateGrepOptWin(21,s:grep_opt_whole)
+function! s:GrepOptionToggle(i)
+    let opt_var = s:option_list[a:i][5]
+    let checkpos = s:option_list[a:i][3]
+    exec "let " . opt_var . " = 1 - " . opt_var
+    exec "call s:UpdateGrepOptWin(" . checkpos .", " . opt_var . ")"
 endfunction
 
-function! s:GrepOptionToggleReg()
-    let s:grep_opt_regex = 1 - s:grep_opt_regex 
-    call s:UpdateGrepOptWin(31,s:grep_opt_regex)
+
+function! s:GrepOptionWinOnCancel()
+    exec "q!"
+    redraw
+    "call s:CloseGrepOptionWin()
+    return
 endfunction
 
-function! s:GrepOptionToggleRec()
-    let s:grep_opt_recurse = 1 - s:grep_opt_recurse 
-    call s:UpdateGrepOptWin(44,s:grep_opt_recurse)
-endfunction
+function! s:GrepOptionWinOnClick()
+    let c = col(".") 
+    let i = 0
+    while i < len(s:option_list)
+        let opname = s:option_list[i][0]
+        let checkpos = s:option_list[i][3]
+        "1234567
+        " case[x]"
+        let cstart = checkpos - len(opname) - 3
+        let cend   = checkpos + 1
+        if (c >= cstart && c <= cend)
+            call s:GrepOptionToggle(i)
+        end
+        let i = i + 1
+    endwhile
 
-function! s:ClickGrepOptionWin()
-    let i = col(".") 
-    "case[7] whole-word[ ] regexp[X] recursive[ ]       <<OK>>  <<Cancel>>
-    "      8 10-        22 24-    32 34-       45       53- 58  61-     70 
-    if (i<=8)
-        call s:GrepOptionToggleCase()
-    elseif (i>=10 && i<=22)
-        call s:GrepOptionToggleWhole()
-    elseif (i>=24 && i<=32)
-        call s:GrepOptionToggleReg()
-    elseif (i>=34 && i<=45)
-        call s:GrepOptionToggleRec()
-    elseif (i>=53 && i<=58)
+    let s = getline(".")
+    let idx_ok = stridx(s, "Ok")
+    let idx_cancel = stridx(s, "Cancel")
+
+    if c >= (idx_ok + 1) && c <= (idx_ok + len("Ok"))
         call s:DoGrepFromOptionWin()
-    elseif (i>=61 && i<=70)
-        exec "q!"
-        redraw
-        "call s:CloseGrepOptionWin()
-        return
+    elseif c >= (idx_cancel + 1) && c <= (idx_cancel + len("Cancel"))
+        call s:GrepOptionWinOnCancel()
     endif
 endfunction
 
@@ -2003,28 +2081,72 @@ function! s:InitGrepOptions()
         exe 1
         resize 1
         redraw
+        " echom "creating"
         setlocal nomodifiable
         silent! setlocal buftype=nofile
         silent! setlocal bufhidden=delete
         silent! setlocal noswapfile
         silent! setlocal nowrap
         silent! setlocal nonumber
-        silent! setlocal nobuflisted
+        silent! setlocal nobuflisted " this likely changes the winheight due to buffer management
+        resize 1
+        nnoremap <buffer> <silent> o :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> <CR> :call <SID>DoGrepFromOptionWin()<CR>
-        nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:call <SID>ClickGrepOptionWin()<CR>
-        nnoremap <buffer> <silent> c :call <SID>GrepOptionToggleCase()<CR>
-        nnoremap <buffer> <silent> w :call <SID>GrepOptionToggleWhole()<CR>
-        nnoremap <buffer> <silent> s :call <SID>GrepOptionToggleRec()<CR>
-        nnoremap <buffer> <silent> e :call <SID>GrepOptionToggleReg()<CR>
+        nnoremap <buffer> <silent> c :call <SID>GrepOptionWinOnCancel()<CR>
+        nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:call <SID>GrepOptionWinOnClick()<CR>
+
+        nnoremap <buffer> <silent> <TAB> :call <SID>GrepOptionWinTab()<CR>
+        nnoremap <buffer> <silent> <ESC> :call <SID>GrepOptionWinOnCancel()<CR>
+
         if has('syntax')
-            syntax match OptionName '\s\+\zs\S\+\ze\['
-            syntax match ButtonName '<<\zs\S\+\ze>>'
+            syntax match OptionName '\s\+\zs\S\+\ze\[' contains=OptionKey0,OptionKey1,OptionKey2,OptionKey3,OptionKey4,OptionKey5,OptionKey6
+            syntax match ButtonName '<<\zs\S\+\ze>>' contains=OptionOk,OptionCancel
+            syntax match OptionOk     '\zsO\zek' contained
+            syntax match OptionCancel '\zsC\zeancel' contained
+
             if has('gui_running') || &t_Co > 2
+                highlight OptionOk     cterm=underline gui=underline
+                highlight OptionCancel cterm=underline gui=underline
                 highlight OptionName guifg=#00FF00
                 highlight ButtonName guifg=#FFFF00
             endif
+
+            let i = 0
+            while i < len(s:option_list)
+
+                let opname = s:option_list[i][0]
+                let keypos = s:option_list[i][1]
+                exec 'nnoremap <buffer> <silent> ' . opname[keypos - 1] . ' :call <SID>GrepOptionToggle(' . i . ')<CR>'
+
+                " nnoremap <buffer> <silent> s :call <SID>GrepOptionToggleCase()<CR>
+                if (keypos >= 2)
+                    let part1  = opname[0:keypos-2]
+                else
+                    let part1  = ''
+                end
+                if (keypos < len(opname))
+                    let part2  = opname[keypos:]
+                else
+                    let part2  = ''
+                end
+ 
+                exec 'syntax match OptionKey'.i. " '" . part1.'\zs'.opname[keypos - 1].'\ze'.part2."' contained"
+
+                if has('gui_running') || &t_Co > 2
+                    exec 'highlight OptionKey' . i . ' cterm=underline gui=underline'
+                endif
+
+                let i = i + 1
+            endwhile
+
         endif
-        exec "normal 55|"
+        " exec "normal 55|"
+    else
+        let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_GREPOPTIONS)
+        echom "Activating existing option window"
+        exe 1
+        resize 1
+        redraw
     endif
 endfunction
 
@@ -2088,6 +2210,12 @@ function! s:RunGrep()
     end
     let s:grep_opt_dir = grep_dir0
     let s:grep_repby = ""
+
+    let grep_options = input("Global options: ", s:cide_grep_options)
+    if grep_options == ""
+        return
+    endif
+    let s:cide_grep_options = grep_options
 
     call s:InitGrepOptions()
     return
