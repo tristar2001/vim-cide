@@ -1901,6 +1901,13 @@ function! s:GetOptionStr()
         let recuopt = "X"
     endif
     let str = " case[".caseopt."] whole-word[".wordopt."] regexp[".regeopt."] recursive[".recuopt."]       <<OK>>  <<Cancel>>"
+  " let str =     [
+  "          \   "[" . caseopt . "] Case" , 
+  "          \   "[" . wordopt . "] Whole",
+  "          \   "[" . regeopt . "] Regex",
+  "          \   "[" . recuopt . "] Recur",
+  "          \   " <<OK>>  <<Cancel>>"
+  "          \   ]
     return str
 endfunction
 
