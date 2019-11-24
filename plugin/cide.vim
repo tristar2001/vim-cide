@@ -1883,24 +1883,33 @@ function! s:RunGrepSubSub(grep_files)
     return 1
 endfunction
 
+"                           opname  keypos  row checkpos    opval   opt_var
+let s:option_list = [   
+                        \ ['case',  3,      0,  0,          0,      's:grep_opt_icase'   ],
+                        \ ['whole', 1,      0,  0,          0,      's:grep_opt_whole'   ],
+                        \ ['regex', 2,      0,  0,          0,      's:grep_opt_regex'   ],
+                        \ ['recur', 1,      0,  0,          0,      's:grep_opt_recurse' ]
+                        \ ]
+
 function! s:GetOptionStr()
-    let caseopt = " "
-    let wordopt = " "
-    let regeopt = " "
-    let recuopt = " "
-    if (s:grep_opt_icase == 1)
-        let caseopt = "X"
-    endif
-    if (s:grep_opt_whole == 1)
-        let wordopt = "X"
-    endif
-    if (s:grep_opt_regex == 1)
-        let regeopt = "X"
-    endif
-    if (s:grep_opt_recurse == 1)
-        let recuopt = "X"
-    endif
-    let str = " Case[".caseopt."] whole-Word[".wordopt."] rEgexp[".regeopt."] Recursive[".recuopt."]       <<Ok>>  <<Cancel>>"
+    let str = ''
+    let i = 0
+    while i < len(s:option_list)
+        let op_name = s:option_list[i][0]
+        let s:option_list[i][3] = len(str) + len(op_name) + 3 " checkpos
+
+        let opt_val = ' '
+        let opt_var = s:option_list[i][5]
+        exec 'let tmp = ' . opt_var
+        if (tmp == 1)
+            let opt_val = 'X'
+        endif
+
+        let str = str . ' ' . op_name . '[' . opt_val . ']'
+        let i = i + 1
+    endwhile
+    let str = str . '    <<Ok>>  <<Cancel>>'
+    " let str = " case[".caseopt."] Whole[".wordopt."] rEgex[".regeopt."] Recur[".recuopt."]       <<Ok>>  <<Cancel>>"
   " let str =     [
   "          \   "[" . caseopt . "] Case" , 
   "          \   "[" . wordopt . "] Whole",
@@ -1921,7 +1930,8 @@ function! s:UpdateGrepOptWin(cl,val)
         let val = 'X'
     endif
     let cl_prev = a:cl - 1
-    let newline = substitute(getline('.'), '^\(.\{' . cl_prev . '}\).', '\1'. val, 'g')
+    let oldline = getline('.')
+    let newline = oldline[0:(a:cl-2)].val.oldline[(a:cl):]
     call setline(line('.'), newline)
     setlocal nomodifiable
 endfunction
@@ -1964,45 +1974,45 @@ function! s:GrepOptionWinTab()
     " call s:DoGrep()
 endfunction
 
-function! s:GrepOptionToggleCase()
-    let s:grep_opt_icase = 1 - s:grep_opt_icase 
-    call s:UpdateGrepOptWin(7, s:grep_opt_icase)
+function! s:GrepOptionToggle(i)
+    let opt_var = s:option_list[a:i][5]
+    let checkpos = s:option_list[a:i][3]
+    exec "let " . opt_var . " = 1 - " . opt_var
+    exec "call s:UpdateGrepOptWin(" . checkpos .", " . opt_var . ")"
 endfunction
 
-function! s:GrepOptionToggleWhole()
-    let s:grep_opt_whole = 1 - s:grep_opt_whole 
-    call s:UpdateGrepOptWin(21,s:grep_opt_whole)
+
+function! s:GrepOptionWinOnCancel()
+    exec "q!"
+    redraw
+    "call s:CloseGrepOptionWin()
+    return
 endfunction
 
-function! s:GrepOptionToggleReg()
-    let s:grep_opt_regex = 1 - s:grep_opt_regex 
-    call s:UpdateGrepOptWin(31,s:grep_opt_regex)
-endfunction
+function! s:GrepOptionWinOnClick()
+    let c = col(".") 
+    let i = 0
+    while i < len(s:option_list)
+        let opname = s:option_list[i][0]
+        let checkpos = s:option_list[i][3]
+        "1234567
+        " case[x]"
+        let cstart = checkpos - len(opname) - 3
+        let cend   = checkpos + 1
+        if (c >= cstart && c <= cend)
+            call s:GrepOptionToggle(i)
+        end
+        let i = i + 1
+    endwhile
 
-function! s:GrepOptionToggleRec()
-    let s:grep_opt_recurse = 1 - s:grep_opt_recurse 
-    call s:UpdateGrepOptWin(44,s:grep_opt_recurse)
-endfunction
+    let s = getline(".")
+    let idx_ok = stridx(s, "Ok")
+    let idx_cancel = stridx(s, "Cancel")
 
-function! s:ClickGrepOptionWin()
-    let i = col(".") 
-    "case[7] whole-word[ ] regexp[X] recursive[ ]       <<OK>>  <<Cancel>>
-    "      8 10-        22 24-    32 34-       45       53- 58  61-     70 
-    if (i<=8)
-        call s:GrepOptionToggleCase()
-    elseif (i>=10 && i<=22)
-        call s:GrepOptionToggleWhole()
-    elseif (i>=24 && i<=32)
-        call s:GrepOptionToggleReg()
-    elseif (i>=34 && i<=45)
-        call s:GrepOptionToggleRec()
-    elseif (i>=53 && i<=58)
+    if c >= (idx_ok + 1) && c <= (idx_ok + len("Ok"))
         call s:DoGrepFromOptionWin()
-    elseif (i>=61 && i<=70)
-        exec "q!"
-        redraw
-        "call s:CloseGrepOptionWin()
-        return
+    elseif c >= (idx_cancel + 1) && c <= (idx_cancel + len("Cancel"))
+        call s:GrepOptionWinOnCancel()
     endif
 endfunction
 
@@ -2024,24 +2034,57 @@ function! s:InitGrepOptions()
         silent! setlocal nowrap
         silent! setlocal nonumber
         silent! setlocal nobuflisted
+        nnoremap <buffer> <silent> o :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> <CR> :call <SID>DoGrepFromOptionWin()<CR>
-        nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:call <SID>ClickGrepOptionWin()<CR>
-        nnoremap <buffer> <silent> c :call <SID>GrepOptionToggleCase()<CR>
-        nnoremap <buffer> <silent> w :call <SID>GrepOptionToggleWhole()<CR>
-        nnoremap <buffer> <silent> r :call <SID>GrepOptionToggleRec()<CR>
-        nnoremap <buffer> <silent> e :call <SID>GrepOptionToggleReg()<CR>
+        nnoremap <buffer> <silent> c :call <SID>GrepOptionWinOnCancel()<CR>
+        nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:call <SID>GrepOptionWinOnClick()<CR>
+
         nnoremap <buffer> <silent> <TAB> :call <SID>GrepOptionWinTab()<CR>
+        nnoremap <buffer> <silent> <ESC> :call <SID>GrepOptionWinOnCancel()<CR>
+
         if has('syntax')
-            syntax match OptionName '\s\+\zs\S\+\ze\[' contains=OptionKey
-            syntax match ButtonName '<<\zs\S\+\ze>>'
-            syntax match OptionKey '[CWER]' contained
+            syntax match OptionName '\s\+\zs\S\+\ze\[' contains=OptionKey0,OptionKey1,OptionKey2,OptionKey3,OptionKey4,OptionKey5,OptionKey6
+            syntax match ButtonName '<<\zs\S\+\ze>>' contains=OptionOk,OptionCancel
+            syntax match OptionOk     '\zsO\zek' contained
+            syntax match OptionCancel '\zsC\zeancel' contained
+
             if has('gui_running') || &t_Co > 2
-                highlight OptionKey  cterm=underline gui=underline
+                highlight OptionOk     cterm=underline gui=underline
+                highlight OptionCancel cterm=underline gui=underline
                 highlight OptionName guifg=#00FF00
                 highlight ButtonName guifg=#FFFF00
             endif
+
+            let i = 0
+            while i < len(s:option_list)
+
+                let opname = s:option_list[i][0]
+                let keypos = s:option_list[i][1]
+                exec 'nnoremap <buffer> <silent> ' . opname[keypos - 1] . ' :call <SID>GrepOptionToggle(' . i . ')<CR>'
+
+                " nnoremap <buffer> <silent> s :call <SID>GrepOptionToggleCase()<CR>
+                if (keypos >= 2)
+                    let part1  = opname[0:keypos-2]
+                else
+                    let part1  = ''
+                end
+                if (keypos < len(opname))
+                    let part2  = opname[keypos:]
+                else
+                    let part2  = ''
+                end
+ 
+                exec 'syntax match OptionKey'.i. " '" . part1.'\zs'.opname[keypos - 1].'\ze'.part2."' contained"
+
+                if has('gui_running') || &t_Co > 2
+                    exec 'highlight OptionKey' . i . ' cterm=underline gui=underline'
+                endif
+
+                let i = i + 1
+            endwhile
+
         endif
-        exec "normal 55|"
+        " exec "normal 55|"
     endif
 endfunction
 
