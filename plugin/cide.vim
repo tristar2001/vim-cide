@@ -45,6 +45,7 @@ function! s:InitVarGlobal(var_name, var_default)
     else
         let s:{a:var_name} = a:var_default
     end
+    " call s:MsgInfo(a:var_name . '=' .  s:{a:var_name})
 endfunction
 
 function! s:ChangeDirectory(folder)
@@ -77,10 +78,18 @@ function! s:InitVars()
 
     " Initialize global configurable variables only when it's not defined
     call s:InitVarGlobal('cide_shell_cscope',   'cscope')
-    call s:InitVarGlobal('cide_shell_ag',       'ag')
+    call s:InitVarGlobal('cide_shell_grep',     'rg')
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
-    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
+
+    if (s:cide_shell_grep == 'rg')
+        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
+        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c, *.cc, *.cpp, *.h, *.hpp, *.mak, *.mk" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
+    else
+        call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
+        call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
+    endif
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -1842,30 +1851,60 @@ function! s:RunGrepSub()
 endfunction
 
 function! s:RunGrepSubSub(grep_files)
-    let grep_opt    = "--numbers --nocolor --nogroup"
-    if (s:grep_opt_whole == 1)
-        let grep_opt = grep_opt." --word-regexp"    " -w
+    let grep_opt    = s:cide_grep_options
+
+    if (s:cide_shell_grep == 'rg')
+        if (s:grep_opt_whole == 1)
+            let grep_opt = grep_opt." --word-regexp"    " -w
+        else
+        endif
+        if (s:grep_opt_icase == 0)
+            let grep_opt = grep_opt." --ignore-case"    " -i
+        else
+            let grep_opt = grep_opt." --case-sensitive" " -s
+        endif
+        if (s:grep_opt_regex == 1)
+            " let grep_opt = grep_opt."e"
+        else
+            let grep_opt = grep_opt." --fixed-strings"   "-F
+        endif
+        if (s:grep_opt_recurse == 1)
+            " let grep_opt = grep_opt." --recurse"      " -r
+        else
+            let grep_opt = grep_opt." --max-depth 0"    " -n
+        endif
+        if (s:grep_opt_hidden == 1)
+            let grep_opt = grep_opt." --hidden"         " -r
+        else
+            "
+        endif
+    elseif (s:cide_shell_grep == 'ag')
+        if (s:grep_opt_whole == 1)
+            let grep_opt = grep_opt." --word-regexp"    " -w
+        else
+        endif
+        if (s:grep_opt_icase == 0)
+            let grep_opt = grep_opt." --ignore-case"    " -i
+        else
+            let grep_opt = grep_opt." --case-sensitive" " -s
+        endif
+        if (s:grep_opt_regex == 1)
+            " let grep_opt = grep_opt."e"
+        else
+            let grep_opt = grep_opt." --literal"
+        endif
+        if (s:grep_opt_recurse == 1)
+            let grep_opt = grep_opt." --recurse"        " -r
+        else
+            let grep_opt = grep_opt." --norecurse"      " -n
+        endif
+        if (s:grep_opt_hidden == 1)
+            let grep_opt = grep_opt." --hidden"         " -r
+        else
+            "
+        endif
     else
-    endif
-    if (s:grep_opt_icase == 0)
-        let grep_opt = grep_opt." --ignore-case"    " -i
-    else
-        let grep_opt = grep_opt." --case-sensitive" " -s
-    endif
-    if (s:grep_opt_regex == 1)
-        " let grep_opt = grep_opt."e"
-    else
-        let grep_opt = grep_opt." --literal"
-    endif
-    if (s:grep_opt_recurse == 1)
-        let grep_opt = grep_opt." --recurse"        " -r
-    else
-        let grep_opt = grep_opt." --norecurse"      " -n
-    endif
-    if (s:grep_opt_hidden == 1)
-        let grep_opt = grep_opt." --hidden"         " -r
-    else
-        "
+        call s:MsgError("invalid s:cide_shell_grep (". s:cide_shell_grep . ")")
     endif
  
     let pattern  = s:CIDE_SHELL_QUOTE_CHAR . s:grep_pattern . s:CIDE_SHELL_QUOTE_CHAR
@@ -1873,7 +1912,7 @@ function! s:RunGrepSubSub(grep_files)
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = s:cide_shell_ag.' '.grep_opt.' '.filespec.' '.pattern
+    let cmd = s:cide_shell_grep.' '.grep_opt.' '.filespec.' '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
