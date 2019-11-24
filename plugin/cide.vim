@@ -80,7 +80,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_ag',       'ag')
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
-    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$" --hidden', '-G "\.(d)$" --hidden'])
+    call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -104,6 +104,7 @@ function! s:InitVars()
     let s:grep_opt_whole                = 0
     let s:grep_opt_icase                = 1
     let s:grep_opt_recurse              = 1
+    let s:grep_opt_hidden               = 0
     let s:grep_opt_regex                = 0
     let s:grep_opt_files                = s:cide_grep_filespecs[0]
     
@@ -1861,7 +1862,12 @@ function! s:RunGrepSubSub(grep_files)
     else
         let grep_opt = grep_opt." --norecurse"      " -n
     endif
-
+    if (s:grep_opt_hidden == 1)
+        let grep_opt = grep_opt." --hidden"         " -r
+    else
+        "
+    endif
+ 
     let pattern  = s:CIDE_SHELL_QUOTE_CHAR . s:grep_pattern . s:CIDE_SHELL_QUOTE_CHAR
     " let filespec = s:CIDE_SHELL_QUOTE_CHAR . a:grep_files . s:CIDE_SHELL_QUOTE_CHAR
     let filespec = a:grep_files
@@ -1883,12 +1889,13 @@ function! s:RunGrepSubSub(grep_files)
     return 1
 endfunction
 
-"                           opname  keypos  row checkpos    opval   opt_var
+"                           opname   keypos  row checkpos    opval   opt_var
 let s:option_list = [   
-                        \ ['case',  3,      0,  0,          0,      's:grep_opt_icase'   ],
-                        \ ['whole', 1,      0,  0,          0,      's:grep_opt_whole'   ],
-                        \ ['regex', 2,      0,  0,          0,      's:grep_opt_regex'   ],
-                        \ ['recur', 1,      0,  0,          0,      's:grep_opt_recurse' ]
+                        \ ['case',   3,      0,  0,          0,      's:grep_opt_icase'   ],
+                        \ ['whole',  1,      0,  0,          0,      's:grep_opt_whole'   ],
+                        \ ['regex',  2,      0,  0,          0,      's:grep_opt_regex'   ],
+                        \ ['recur',  1,      0,  0,          0,      's:grep_opt_recurse' ],
+                        \ ['hidden', 1,      0,  0,          0,      's:grep_opt_hidden'  ]
                         \ ]
 
 function! s:GetOptionStr()
@@ -1944,11 +1951,18 @@ let s:grep_opt_name_recurse_1 = 'r'
 let s:grep_opt_name_recurse_0 = ''
 let s:grep_opt_name_regex_1 = 'e'
 let s:grep_opt_name_regex_0 = ''
+let s:grep_opt_name_hidden_1 = 'h'
+let s:grep_opt_name_hidden_0 = ''
 
 function! s:AfterQuery(pat, cmdname)
     let tmpfile = tempname()
     call s:SaveStrToFile(s:cscope_cmd_out, tmpfile)
-    let casechar = s:grep_opt_name_icase_{s:grep_opt_icase}.s:grep_opt_name_whole_{s:grep_opt_whole}.s:grep_opt_name_recurse_{s:grep_opt_recurse}.s:grep_opt_name_regex_{s:grep_opt_regex}
+    let casechar = s:grep_opt_name_icase_{s:grep_opt_icase}.
+                \  s:grep_opt_name_whole_{s:grep_opt_whole}.
+                \  s:grep_opt_name_recurse_{s:grep_opt_recurse}.
+                \  s:grep_opt_name_regex_{s:grep_opt_regex}.
+                \  s:grep_opt_name_hidden_{s:grep_opt_hidden}
+
     call s:InsertQuery(1, a:cmdname." ".casechar, a:pat, 0, tmpfile, s:grep_opt_dir)
     call s:GotoCodeWindow()
 endfunction
