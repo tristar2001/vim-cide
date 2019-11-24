@@ -84,8 +84,9 @@ function! s:InitVars()
 
     if (s:cide_shell_grep == 'rg')
         call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
         " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c, *.cc, *.cpp, *.h, *.hpp, *.mak, *.mk" --sort path')
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
+        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
     else
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
@@ -2080,6 +2081,7 @@ function! s:InitGrepOptions()
         exe 1
         resize 1
         redraw
+        " echom "creating"
         setlocal nomodifiable
         silent! setlocal buftype=nofile
         silent! setlocal bufhidden=delete
@@ -2138,6 +2140,12 @@ function! s:InitGrepOptions()
 
         endif
         " exec "normal 55|"
+    else
+        let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_GREPOPTIONS)
+        echom "Activating existing option window"
+        exe 1
+        resize 1
+        redraw
     endif
 endfunction
 
@@ -2201,6 +2209,12 @@ function! s:RunGrep()
     end
     let s:grep_opt_dir = grep_dir0
     let s:grep_repby = ""
+
+    let grep_options = input("Global options: ", s:cide_grep_options)
+    if grep_options == ""
+        return
+    endif
+    let s:cide_grep_options = grep_options
 
     call s:InitGrepOptions()
     return
