@@ -1900,7 +1900,7 @@ function! s:GetOptionStr()
     if (s:grep_opt_recurse == 1)
         let recuopt = "X"
     endif
-    let str = " case[".caseopt."] whole-word[".wordopt."] regexp[".regeopt."] recursive[".recuopt."]       <<OK>>  <<Cancel>>"
+    let str = " Case[".caseopt."] whole-Word[".wordopt."] rEgexp[".regeopt."] Recursive[".recuopt."]       <<Ok>>  <<Cancel>>"
   " let str =     [
   "          \   "[" . caseopt . "] Case" , 
   "          \   "[" . wordopt . "] Whole",
@@ -1920,8 +1920,9 @@ function! s:UpdateGrepOptWin(cl,val)
     else
         let val = 'X'
     endif
-    exec "normal ".a:cl."|"
-    exec "normal r".val
+    let cl_prev = a:cl - 1
+    let newline = substitute(getline('.'), '^\(.\{' . cl_prev . '}\).', '\1'. val, 'g')
+    call setline(line('.'), newline)
     setlocal nomodifiable
 endfunction
 
@@ -1955,6 +1956,12 @@ function! s:DoGrepFromOptionWin()
     exec "q!"
     redraw
     call s:DoGrep()
+endfunction
+
+function! s:GrepOptionWinTab()
+    echo "tab" 
+    " redraw
+    " call s:DoGrep()
 endfunction
 
 function! s:GrepOptionToggleCase()
@@ -2021,12 +2028,15 @@ function! s:InitGrepOptions()
         nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:call <SID>ClickGrepOptionWin()<CR>
         nnoremap <buffer> <silent> c :call <SID>GrepOptionToggleCase()<CR>
         nnoremap <buffer> <silent> w :call <SID>GrepOptionToggleWhole()<CR>
-        nnoremap <buffer> <silent> s :call <SID>GrepOptionToggleRec()<CR>
+        nnoremap <buffer> <silent> r :call <SID>GrepOptionToggleRec()<CR>
         nnoremap <buffer> <silent> e :call <SID>GrepOptionToggleReg()<CR>
+        nnoremap <buffer> <silent> <TAB> :call <SID>GrepOptionWinTab()<CR>
         if has('syntax')
-            syntax match OptionName '\s\+\zs\S\+\ze\['
+            syntax match OptionName '\s\+\zs\S\+\ze\[' contains=OptionKey
             syntax match ButtonName '<<\zs\S\+\ze>>'
+            syntax match OptionKey '[CWER]' contained
             if has('gui_running') || &t_Co > 2
+                highlight OptionKey  cterm=underline gui=underline
                 highlight OptionName guifg=#00FF00
                 highlight ButtonName guifg=#FFFF00
             endif
