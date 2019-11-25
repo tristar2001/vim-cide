@@ -1,8 +1,8 @@
 # Description
-Powerful searching and navigation plugin that makes VIM an IDE (based on ag and cscope).
+Powerful searching and navigation plugin that makes VIM an IDE based on ripgrep( _rg_ ) and _cscope_.
 
 # Features
-* Text search in multiple files (based on silver-searcher ag)
+* Text search in multiple files based on _rg_
   * Support literal or regex based patterns
   * Support user specified file types
   * Configurable search options (case-sensitive, whole-word, regex, recursive)
@@ -14,7 +14,7 @@ Powerful searching and navigation plugin that makes VIM an IDE (based on ag and 
   * Caller tree of a symbol
   * Callee tree of a symbol
 * Search history
-  * The history of all search requests (cscope or ag) is preserved and displayed in QHistory buffer
+  * The history of all search requests (cscope or rg) is preserved and displayed in QHistory buffer
   * The last browsed position (selected item in the QResult window) of each search is preserved; it makes the navigation between multiple search results much easier
   
 # Highlights
@@ -27,11 +27,11 @@ This approach is especially useful for studying and navigation inside a large or
 
 # Example work flow
 * Start a search with option configuration
-  * \<Leader\>g to search a symbol with ag (silver searcher), configure file types, base directory, and other options (case, whole-word, etc.)
+  * \<Leader\>g to search a symbol with _rg_, configure file types, base directory, and other options (case, whole-word, etc.)
   * \<Leader\>s to search a symbol with cscope
 * Search with last configured options
   * \<Leader\>l
-* Navigate between search results inside the `QResult' window
+* Navigate between search results inside the 'QResult' window
   * Double-click items in "QResulst" (search result) window to view the corresponding code
 * Navigate between history search requests
   * Double-click items in "QHistory" (Search History) window for previous search results
@@ -48,19 +48,24 @@ Note the default <Leader> key is '\\'
 | \<Leader\>f |  :Ifile\<CR\>        | Find files by name                 |
 | \<Leader\>i |  :Iincl\<CR\>        | Find include files                 |
 | \<Leader\>l |  :Ilast\<CR\>        | Find with last grep options        |
-| \<Leader\>g |  :Igrep\<CR\>        | Find with grep (ag)                |
+| \<Leader\>g |  :Igrep\<CR\>        | Find with grep ( _rg_ )            |
 | \<Leader\>r |  :Icallertree\<CR\>  | Draw caller tree of current symbol |
 | \<Leader\>e |  :Icalleetree\<CR\>  | Draw callee tree of current symbol |
 
+<!--
+  * silver searcher (ag): can be downloaded from [https://github.com/ggreer/the\_silver\_searcher](https://github.com/ggreer/the\_silver\_searcher)
+-->
+
 # Installation
-* Dependencies
-  * silver searcher (ag): can be downloaded from [https://github.com/ggreer/the_silver_searcher](https://github.com/ggreer/the_silver_searcher)
+## Dependencies
+  * ripgrep ( _rg_ ) recommended: can be downloaded from [https://github.com/BurntSushi/ripgrep/releases](https://github.com/BurntSushi/ripgrep/releases)
   * cscope: can be downloaded from [http://cscope.sourceforge.net/](http://cscope.sourceforge.net/)
   * find: the windows version can be found under C:/Program Files/Git/usr/bin/find.exe if Git was installed
-* Manual installation
+
+## Manual installation
   * Download this plugin from [https://github.com/tristar2001/vim-cide](https://github.com/tristar2001/vim-cide)
   * Copy downloaded cide.vim to vimfiles/plugin/ folder
-* Vundle installation
+## Vundle installation
   * Prerequisite: install Vundle from [https://github.com/VundleVim/Vundle.vim](https://github.com/VundleVim/Vundle.vim)
   * Insert the following line in .vimrc (or \_vimrc), after "Plugin 'VundleVim/Vundle.vim'", and before "call vundle#end()"
     ```vim
@@ -76,10 +81,18 @@ Note this step is **optional**. And it's usually needed when any of the followin
 ```vim
 " C-IDE configuration
 let g:cide_shell_cscope   = 'cscope'
-let g:cide_shell_ag       = 'ag'
 let g:cide_shell_find     = 'C:/Program Files/Git/usr/bin/find.exe'
 let g:cide_shell_date     = 'date /T'
-let g:cide_grep_filespecs = ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk|mak)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$" --hidden', '-G "\.(d)$" --hidden'])
+" For rg
+let g:cide_shell_grep     = 'rg'
+let g:cide_grep_filespecs = ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk|mak)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"']
+
+<!--
+" For ag
+let g:cide_shell_grep     = 'ag'
+let g:cide_grep_filespecs = ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk|mak)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"']
+-->
+
 ```
 # Screenshots
 ![main](https://github.com/tristar2001/images/blob/master/vim-cide/main.png)

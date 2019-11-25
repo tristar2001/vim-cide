@@ -2088,7 +2088,8 @@ function! s:InitGrepOptions()
         silent! setlocal noswapfile
         silent! setlocal nowrap
         silent! setlocal nonumber
-        silent! setlocal nobuflisted
+        silent! setlocal nobuflisted " this likely changes the winheight due to buffer management
+        resize 1
         nnoremap <buffer> <silent> o :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> <CR> :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> c :call <SID>GrepOptionWinOnCancel()<CR>
