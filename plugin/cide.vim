@@ -54,32 +54,40 @@ function! s:ChangeDirectory(folder)
     return oldpath
 endfunction
 
+function! s:GetGnuWinExeDefault(app)
+    let exepath = ''
+    " Make sure windows/system32/<app>.exe is not used
+    for cmd in split(system('where ' . a:app. '.exe'), '\n')
+        let syscmd = '\System32\' . a:app. '.exe'
+        let syslen = strlen(syscmd)
+        let cmdlen = strlen(cmd)
+        if (cmdlen > strlen(syscmd))
+            if (tolower(syscmd) != tolower(strpart(cmd, cmdlen - syslen, syslen)))
+                let exepath = substitute(cmd, '\\', '\\\\', 'g')
+                break
+            endif
+        end
+    endfor
+    return exepath
+endfunction
+
 function! s:InitVars()
     " Initialize global configurable variable default
     if has('win32')
-        let default_cide_shell_find = ''
-        " Make sure windows/system32/find.exe is not used
-        for cmd in split(system('where find.exe'), '\n')
-            let syscmd = '\System32\find.exe'
-            let syslen = strlen(syscmd)
-            let cmdlen = strlen(cmd)
-            if (cmdlen > strlen(syscmd))
-                if (tolower(syscmd) != tolower(strpart(cmd, cmdlen - syslen, syslen)))
-                    let default_cide_shell_find = substitute(cmd, '\\', '\\\\', 'g')
-                    break
-                endif
-            end
-        endfor
-        let default_cide_shell_date     = 'date /T'
+        let default_cide_shell_find = s:GetGnuWinExeDefault('find')
+        let default_cide_shell_sort = s:GetGnuWinExeDefault('sort')
+        let default_cide_shell_date = 'date /T'
     else
-        let default_cide_shell_find     = 'find'
-        let default_cide_shell_date     = 'date +\"%a %D %T.%3N\"'
+        let default_cide_shell_find = 'find'
+        let default_cide_shell_find = 'sort'
+        let default_cide_shell_date = 'date +\"%a %D %T.%3N\"'
     endif
 
     " Initialize global configurable variables only when it's not defined
     call s:InitVarGlobal('cide_shell_cscope',   'cscope')
     call s:InitVarGlobal('cide_shell_grep',     'rg')
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
+    call s:InitVarGlobal('cide_shell_sort',     default_cide_shell_sort)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
 
     if (s:cide_shell_grep == 'rg')
@@ -91,6 +99,8 @@ function! s:InitVars()
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
     endif
+
+    call s:InitVarGlobal('cide_find_filespecs', ['*', '*.pdf', '*.doc*', '*.ppt*'])
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -108,8 +118,10 @@ function! s:InitVars()
     let s:CIDE_RES_IND_MARK             = "<=="
     let s:CIDE_SHELL_QUOTE_CHAR         = '"' " Character to use to quote patterns and filenames before passing to grep.
 
-    " Load default grep options
+    " Load default cide config path
     let s:cide_cur_cfg_path             = ""
+
+    " Load default grep options
     let s:grep_opt_dir                  = getcwd()
     let s:grep_opt_whole                = 0
     let s:grep_opt_icase                = 1
@@ -117,6 +129,15 @@ function! s:InitVars()
     let s:grep_opt_hidden               = 0
     let s:grep_opt_regex                = 0
     let s:grep_opt_files                = s:cide_grep_filespecs[0]
+
+    " Load default find options
+    let s:find_opt_dir                  = getcwd()
+    " let s:find_opt_whole                = 0
+    " let s:find_opt_icase                = 1
+    " let s:find_opt_recurse              = 1
+    " let s:find_opt_hidden               = 0
+    " let s:find_opt_regex                = 0
+    let s:find_opt_files                = s:cide_find_filespecs[0]
     
     " Initialize default runtime variables
     let s:cide_cur_query_type           = 'grep'
@@ -2234,6 +2255,44 @@ function! s:RunGrepLast()
     return
 endfunction
 
+function! s:RunFind()
+    call s:CideLoadOptions()
+
+    " Get the identifier and file list from user
+    let grep_pattern0 = input("Search for pattern: ", expand("<cword>"))
+    if grep_pattern0 == ""
+        return
+    endif
+    let s:grep_pattern = grep_pattern0
+
+    let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletion")
+    if grep_files0 == ""
+        return
+    endif
+    let s:grep_opt_files = grep_files0
+
+    let grep_dir0 = input("Search under folder: ", s:grep_opt_dir, "dir")
+    if grep_dir0 == ""
+        return
+    endif
+    if !isdirectory(grep_dir0)
+        call s:MsgError('invalid directory "'.grep_dir0.'"')
+        return
+    end
+    let s:grep_opt_dir = grep_dir0
+    let s:grep_repby = ""
+
+    let grep_options = input("Global options: ", s:cide_grep_options)
+    if grep_options == ""
+        return
+    endif
+    let s:cide_grep_options = grep_options
+
+    call s:InitGrepOptions()
+    return
+endfunction
+
+
 function! s:CB_ShellCommanderOpenWin()
     let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_SHELL_OUT)
     if (reswin == -1) 
@@ -2295,13 +2354,13 @@ command! -nargs=* Imakeclean                call <SID>MyMake("clean")
 command! -nargs=* Imakerebuild              call <SID>MyMake("clean all")
 
 " Define set of cide commands
-command! -nargs=* Igrep                     call s:RunGrep()
-command! -nargs=* Ilast                     call s:RunGrepLast()
+command! -nargs=* Igrep                     call <SID>RunGrep()
+command! -nargs=* Ilast                     call <SID>RunGrepLast()
 command! -nargs=* Isymb                     call <SID>RunCscope(0,"") " c symbol
 command! -nargs=* Idefi                     call <SID>RunCscope(1,"") " global definition
 command! -nargs=* Icall                     call <SID>RunCscope(2,"") " calling
 command! -nargs=* Icaby                     call <SID>RunCscope(3,"") " called by
-command! -nargs=* Ifind                     call <SID>RunCscope(6,"") " cscope find egrep
+command! -nargs=* Ifind                     call <SID>RunFind()       " find file
 command! -nargs=* Ifile                     call <SID>RunCscope(7,"") " find this file
 command! -nargs=* Iincl                     call <SID>RunCscope(8,"") " find file including this file
 command! -nargs=* CscopeCase                call <SID>CscopeCase(<f-args>)
@@ -2338,11 +2397,12 @@ nmap <Leader>e  :Icalleetree<CR>
 
 " Define menu items under CIDE
 :menu <silent> &CIDE.-SepSearch-            :
+:menu <silent> &CIDE.&Find<TAB>F            :Ifind<CR>
+:menu <silent> &CIDE.&Grep<TAB>g            :Igrep<CR>
 :menu <silent> &CIDE.&Symbol<TAB>s          :Isymb<CR>
 :menu <silent> &CIDE.global&Def<TAB>d       :Idefi<CR>
 :menu <silent> &CIDE.&Calls<TAB>c           :Icall<CR>
 :menu <silent> &CIDE.called&By<TAB>b        :Icaby<CR>
-:menu <silent> &CIDE.&Grep<TAB>g            :Igrep<CR>
 :menu <silent> &CIDE.grep&Last<TAB>l        :Ilast<CR>
 :menu <silent> &CIDE.this&File<TAB>f        :Ifile<CR>
 :menu <silent> &CIDE.&Include<TAB>i         :Iincl<CR>
