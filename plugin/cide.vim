@@ -2468,7 +2468,7 @@ function! s:RunFind()
  "  redraw
     " --- endfunction
     " echo str
-    echom str " report summary
+    " echom str " report summary
     return
 endfunction
 
