@@ -79,7 +79,7 @@ function! s:InitVars()
         let default_cide_shell_date = 'date /T'
     else
         let default_cide_shell_find = 'find'
-        let default_cide_shell_find = 'sort'
+        let default_cide_shell_sort = 'sort'
         let default_cide_shell_date = 'date +\"%a %D %T.%3N\"'
     endif
 
