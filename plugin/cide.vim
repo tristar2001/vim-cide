@@ -54,8 +54,8 @@ function! s:ChangeDirectory(folder)
     return oldpath
 endfunction
 
-function! s:GetGnuWinExeDefault(app)
-    let exepath = ''
+function! s:GetGnuWinExeDefault(app, app_default)
+    let exepath = a:app_default
     " Make sure windows/system32/<app>.exe is not used
     for cmd in split(system('where ' . a:app. '.exe'), '\n')
         let syscmd = '\System32\' . a:app. '.exe'
@@ -73,9 +73,9 @@ endfunction
 
 function! s:InitVars()
     " Initialize global configurable variable default
-    if has('win32')
-        let default_cide_shell_find = s:GetGnuWinExeDefault('find')
-        let default_cide_shell_sort = s:GetGnuWinExeDefault('sort')
+    if has('win32') || has ('win64') || has('win32unix')
+        let default_cide_shell_find = s:GetGnuWinExeDefault('find', 'C:/Program Files/Git/usr/bin/sort.exe')
+        let default_cide_shell_sort = s:GetGnuWinExeDefault('sort', 'C:/Program Files/Git/usr/bin/sort.exe')
         let default_cide_shell_date = 'date /T'
     else
         let default_cide_shell_find = 'find'
@@ -100,7 +100,8 @@ function! s:InitVars()
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
     endif
 
-    call s:InitVarGlobal('cide_find_filespecs', ['*', '*.pdf', '*.doc*', '*.ppt*'])
+    call s:InitVarGlobal('cide_find_filespecs', ['-name "*" -type f', '-name "*"', '-name "*.pdf" -type f'])
+    call s:InitVarGlobal('cide_find_options', '-maxdepth 999')
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -114,6 +115,7 @@ function! s:InitVars()
     let s:CIDE_WIN_TITLE_CALLERTREE     = "Callers"
     let s:CIDE_WIN_TITLE_GREPOPTIONS    = "Options"
     let s:CIDE_WIN_TITLE_SHELL_OUT      = "ShellOutput"
+    let s:CIDE_WIN_TITLE_FINDFILE       = "FindResult"
     let s:CIDE_WIN_CODE_MARK            = "CODEWINDOW"
     let s:CIDE_RES_IND_MARK             = "<=="
     let s:CIDE_SHELL_QUOTE_CHAR         = '"' " Character to use to quote patterns and filenames before passing to grep.
@@ -132,11 +134,11 @@ function! s:InitVars()
 
     " Load default find options
     let s:find_opt_dir                  = getcwd()
-    " let s:find_opt_whole                = 0
-    " let s:find_opt_icase                = 1
-    " let s:find_opt_recurse              = 1
-    " let s:find_opt_hidden               = 0
-    " let s:find_opt_regex                = 0
+    " let s:find_opt_whole              = 0
+    " let s:find_opt_icase              = 1
+    " let s:find_opt_recurse            = 1
+    " let s:find_opt_hidden             = 0
+    " let s:find_opt_regex              = 0
     let s:find_opt_files                = s:cide_find_filespecs[0]
     
     " Initialize default runtime variables
@@ -1934,7 +1936,7 @@ function! s:RunGrepSubSub(grep_files)
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = s:cide_shell_grep.' '.grep_opt.' '.filespec.' '.pattern
+    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.filespec.' '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
@@ -2201,7 +2203,7 @@ function! s:CideSaveOptions()
     endif
 endfunction
 
-function! FileTypeCompletion(ArgLead, CmdLine, CursorPos)
+function! FileTypeCompletionGrep(ArgLead, CmdLine, CursorPos)
     return s:cide_grep_filespecs
 endfunction
 
@@ -2215,7 +2217,7 @@ function! s:RunGrep()
     endif
     let s:grep_pattern = grep_pattern0
 
-    let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletion")
+    let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletionGrep")
     if grep_files0 == ""
         return
     endif
@@ -2255,43 +2257,220 @@ function! s:RunGrepLast()
     return
 endfunction
 
+
+function! s:CB_FindWinViewCurrentItem(key)
+    let curline = getline(".")
+    let fname0 = curline[35:]
+    let fname = '"' . s:find_opt_dir . '/' . fname0 . '"'
+    if has('win32') || has ('win64') || has('win32unix')
+        let fname = substitute(fname, '/', '\\', 'g')
+    endif
+    if (a:key == 'o')
+        let cmd = fname
+
+        if has('win32') || has ('win64') || has('win32unix')
+            exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname
+            " let out = system('start rundll32 url.dll,FileProtocolHandler '.fname)
+        elseif has("unix") && executable("xdg-open")
+           exec 'silent! !xdg-open '.fname
+        elseif has("macunix") && executable("open")
+           exec 'silent! !open '.fname
+        else
+        endif
+        " echom "out=".out." v:shell_error=".v:shell_error
+    elseif (a:key == 'v')
+        call s:OpenViewFile(fname0, 1, s:find_opt_dir)
+        call s:GotoWindowByName(s:CIDE_WIN_TITLE_FINDFILE) " back to current window
+    elseif (a:key == 'V')
+        if has('win32') || has ('win64') || has('win32unix')
+            exec 'silent! !start gvim '.fname
+        elseif has("unix") && executable("xdg-open")
+            exec 'silent! !gvim '.fname
+        elseif has("macunix") && executable("open")
+            exec 'silent! !gvim '.fname
+        endif
+    else
+    end
+    " if (idx-1 >  s:QueryNumFounds{s:cide_cur_sel_query})
+    "     return
+    " endif
+    " let s:QueryCurIdx{s:cide_cur_sel_query} = idx-1
+    " " find the window and select it
+    " let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYRES)
+    " if (reswin == -1) 
+    "     return
+    " endif
+
+    " call s:MarkLine(idx)
+
+    " " [open the file and] goto the line number
+    " let linestr = getline(idx)
+
+    " if s:cide_cur_query_type == 'grep'
+    "     let idx_start = 0
+    "     if (linestr[1] == ':' && (linestr[2] == '\\' || linestr[2] == '/'))
+    "         let idx_start = 2
+    "     endif
+    "     let idx_colon1 = stridx(linestr, ":", idx_start)
+    "     if (idx_colon1 < 1)
+    "         call s:MsgError("incorrect format2")
+    "         return
+    "     endif
+    "     let fname = strpart(linestr, idx_start, idx_colon1 - idx_start)
+    "     let idx_colon2 = stridx(linestr, ":", idx_colon1 + 1)
+    "     if (idx_colon2 < 1)
+    "         call s:MsgError("incorrect format3")
+    "         return
+    "     endif
+    "     let linenum= strpart(linestr, idx_colon1 + 1, idx_colon2 - idx_colon1 - 1)
+    " else
+    "     let idx = stridx(linestr, " ")
+    "     if (idx < 1)
+    "         return
+    "     endif
+    "     let fname = strpart(linestr, 0, idx)
+    "     let linestr = strpart(linestr, idx+1)
+    "     let idx = stridx(linestr, " ")
+    "     if (idx < 1)
+    "         return
+    "     endif
+    "     let linenum= strpart(linestr, 0, idx)
+    " endif
+    " call s:OpenViewFile(fname, linenum, s:QueryBaseDir{s:cide_cur_sel_query})
+endfunction
+
+function! s:CB_FindWinSort(key)
+    setlocal modifiable
+    if (a:key == 't')
+        let c = '-k 1,2 -r'
+    elseif (a:key == 's')
+        let c = '-k 3 -n -r'
+    elseif (a:key == 'n')
+        let c = '-k 4 -r -b --ignore-case'
+    elseif (a:key == 'T')
+        let c = '-k 1,2'
+    elseif (a:key == 'S')
+        let c = '-k 3 -n'
+    elseif (a:key == 'N')
+        let c = '-k 4 -b --ignore-case'
+    else
+    endif
+
+    let cmd = ':1,$ !"' . s:cide_shell_sort . '" ' . c . ' --ignore-case'
+    " echo cmd
+    silent! exec cmd
+    setlocal nomodifiable
+
+endfunction
+
+function! FileTypeCompletionFind(ArgLead, CmdLine, CursorPos)
+    return s:cide_find_filespecs
+endfunction
+
 function! s:RunFind()
     call s:CideLoadOptions()
 
-    " Get the identifier and file list from user
-    let grep_pattern0 = input("Search for pattern: ", expand("<cword>"))
-    if grep_pattern0 == ""
+    let find_files0 = input("Search files: ", s:find_opt_files, "customlist,FileTypeCompletionFind")
+    if find_files0 == ""
         return
     endif
-    let s:grep_pattern = grep_pattern0
+    let s:find_opt_files = find_files0
 
-    let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletion")
-    if grep_files0 == ""
+    let find_dir0 = input("Search under folder: ", s:find_opt_dir, "dir")
+    if find_dir0 == ""
         return
     endif
-    let s:grep_opt_files = grep_files0
-
-    let grep_dir0 = input("Search under folder: ", s:grep_opt_dir, "dir")
-    if grep_dir0 == ""
-        return
-    endif
-    if !isdirectory(grep_dir0)
-        call s:MsgError('invalid directory "'.grep_dir0.'"')
+    if !isdirectory(find_dir0)
+        call s:MsgError('invalid directory "'.find_dir0.'"')
         return
     end
-    let s:grep_opt_dir = grep_dir0
-    let s:grep_repby = ""
+    let s:find_opt_dir = find_dir0
 
-    let grep_options = input("Global options: ", s:cide_grep_options)
-    if grep_options == ""
+    let find_options = input("Global options: ", s:cide_find_options)
+    if find_options == ""
         return
     endif
-    let s:cide_grep_options = grep_options
+    let s:cide_find_options = find_options
 
-    call s:InitGrepOptions()
+    let cmd = '"'.s:cide_shell_find.'" . '.find_options.' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS %-14s %P\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
+
+    " echom cmd
+    let oldpath = s:ChangeDirectory(s:find_opt_dir) " save original directory
+    let s:cscope_cmd_out_find = system(cmd)
+    call s:ChangeDirectory(oldpath) " restore original directory
+
+    if (s:cscope_cmd_out_find == "" || strlen(s:cscope_cmd_out_find)<5)
+        return 0
+    endif
+    let tmpfile = 'c:/temp/test.txt' " tempname()
+    call s:SaveStrToFile(s:cscope_cmd_out_find, tmpfile)
+    " --- call s:OpenQueryListQueryResult()
+    " let nLines = s:PopulateQueryResult(a:idx)
+
+    let winNumQR = s:FindWindow(s:CIDE_WIN_TITLE_FINDFILE)
+    if winNumQR == -1
+        " --- call s:InitQueryResultWin()
+        call s:CreateWindow('botright 10new', s:CIDE_WIN_TITLE_FINDFILE)
+        " call append(0,"Results for ")
+        setlocal nomodifiable
+        silent! setlocal buftype=nofile
+        silent! setlocal bufhidden=delete
+        silent! setlocal noswapfile
+        silent! setlocal nowrap
+        silent! setlocal nonumber
+        silent! setlocal nobuflisted
+        nnoremap <buffer> <silent> v :call <SID>CB_FindWinViewCurrentItem('v')<CR>
+        nnoremap <buffer> <silent> V :call <SID>CB_FindWinViewCurrentItem('V')<CR>
+        " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
+        nnoremap <buffer> <silent> o :call <SID>CB_FindWinViewCurrentItem('o')<CR>
+        nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('v')<CR>
+        nnoremap <buffer> <silent> t :call <SID>CB_FindWinSort('t')<CR>
+        nnoremap <buffer> <silent> s :call <SID>CB_FindWinSort('s')<CR>
+        nnoremap <buffer> <silent> n :call <SID>CB_FindWinSort('n')<CR>
+        nnoremap <buffer> <silent> T :call <SID>CB_FindWinSort('T')<CR>
+        nnoremap <buffer> <silent> S :call <SID>CB_FindWinSort('S')<CR>
+        nnoremap <buffer> <silent> N :call <SID>CB_FindWinSort('N')<CR>
+    endif
+
+    " --- let nLines = s:PopulateQueryResult(a:idx)
+    let qres_win = s:FindWindow(s:CIDE_WIN_TITLE_FINDFILE)
+    if (qres_win == -1)
+        call s:MsgError("failed to find FindResult windows")
+        return 0
+    endif
+
+    "goto find result window
+    call s:GotoWindow(qres_win)
+
+    " Set syntax
+    " TBD call s:SetQueryResultWinSyntax()
+
+    "delete all content
+    setlocal modifiable
+    exe '1,$delete'
+    silent! exe "read ". tmpfile
+    1d
+    " if (v:version >= 700)
+    "     " sort
+    " endif
+    let nLines = line("$")
+    let str = ' >>> ' . nLines . ' files were found under "'. s:find_opt_dir . '"'
+    " call append(0, str)
+    " call append(1, '[v]Modified Time    [ ]Size        [ ]Name')
+ "   " silent! exec "%s/\r//g"
+ "   silent! exec ":%s/\r$//"
+    silent! setlocal nomodifiable
+    exec 1
+    set number
+    redraw
+ "  let s:cide_cur_sel_query = a:qidx
+ "  call s:MarkLine(s:QueryCurIdx{a:qidx}+1)
+ "  redraw
+    " --- endfunction
+    " echo str
+    echom str " report summary
     return
 endfunction
-
 
 function! s:CB_ShellCommanderOpenWin()
     let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_SHELL_OUT)
@@ -2384,6 +2563,7 @@ command! -nargs=* MyTest    silent!         call <SID>ExecVimCmdOutput("cs show"
 command! -nargs=* ShellCommander            call <SID>ShellCommander()
 
 " Define short cuts
+nmap <Leader>F  :Ifind<CR>
 nmap <Leader>s  :Isymb<CR>
 nmap <Leader>d  :Idefi<CR>
 nmap <Leader>c  :Icall<CR>
