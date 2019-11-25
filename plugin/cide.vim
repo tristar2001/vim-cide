@@ -2402,7 +2402,7 @@ function! s:RunFind()
     if (s:cscope_cmd_out_find == "" || strlen(s:cscope_cmd_out_find)<5)
         return 0
     endif
-    let tmpfile = 'c:/temp/test.txt' " tempname()
+    let tmpfile = tempname()
     call s:SaveStrToFile(s:cscope_cmd_out_find, tmpfile)
     " --- call s:OpenQueryListQueryResult()
     " let nLines = s:PopulateQueryResult(a:idx)
