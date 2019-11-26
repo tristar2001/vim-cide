@@ -90,6 +90,9 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_sort',     default_cide_shell_sort)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
 
+    call s:InitVarGlobal('cide_findwin_cols_time', 19)
+    call s:InitVarGlobal('cide_findwin_cols_size', 14)
+    call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
         call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
         call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
@@ -516,7 +519,7 @@ function! s:OpenViewFile(fname, lineno, basedir)
         let fname0=fnamemodify(fname0,":.")
     endif
 
-    echo fname0
+    " echo fname0
     let winnum = s:GetCodeWindow()
     if winnum == -1
         "      echo "ACS window not found!"
@@ -2260,14 +2263,20 @@ endfunction
 
 function! s:CB_FindWinViewCurrentItem(key)
     let curline = getline(".")
-    let fname0 = curline[35:]
-    let fname = '"' . s:find_opt_dir . '/' . fname0 . '"'
-    if has('win32') || has ('win64') || has('win32unix')
-        let fname = substitute(fname, '/', '\\', 'g')
-    endif
-    if (a:key == 'o')
-        let cmd = fname
 
+    let parts = split(curline[(s:cide_findwin_cols_time + s:cide_findwin_cols_size + 6):], "|") " TBD
+    let fname = substitute(parts[0], '^\s*\(.\{-}\)\s*$', '\1', '')
+    let path_rel = substitute(parts[1], '^\s*\(.\{-}\)\s*$', '\1', '')
+    let fname_rel = path_rel . '/' . fname 
+    let fname_abs = '"' . s:find_opt_dir . '/' . fname_rel . '"'
+    if has('win32') || has ('win64') || has('win32unix')
+        let fname_abs = substitute(fname_abs, '/', '\\', 'g')
+    endif
+    " echom "fname=".fname
+    " echom "path_rel=".path_rel
+    " echom "fname_rel=".fname_rel
+    " echom "fname_abs=".fname_abs
+    if (a:key == 'o')
         if has('win32') || has ('win64') || has('win32unix')
             exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname
             " let out = system('start rundll32 url.dll,FileProtocolHandler '.fname)
@@ -2279,15 +2288,15 @@ function! s:CB_FindWinViewCurrentItem(key)
         endif
         " echom "out=".out." v:shell_error=".v:shell_error
     elseif (a:key == 'v')
-        call s:OpenViewFile(fname0, 1, s:find_opt_dir)
+        call s:OpenViewFile(fname_rel, 1, s:find_opt_dir)
         call s:GotoWindowByName(s:CIDE_WIN_TITLE_FINDFILE) " back to current window
     elseif (a:key == 'V')
         if has('win32') || has ('win64') || has('win32unix')
-            exec 'silent! !start gvim '.fname
+            exec 'silent! !start gvim '.fname_abs
         elseif has("unix") && executable("xdg-open")
-            exec 'silent! !gvim '.fname
+            exec 'silent! !gvim '.fname_abs
         elseif has("macunix") && executable("open")
-            exec 'silent! !gvim '.fname
+            exec 'silent! !gvim '.fname_abs
         endif
     else
     end
@@ -2342,22 +2351,26 @@ endfunction
 function! s:CB_FindWinSort(key)
     setlocal modifiable
     if (a:key == 't')
-        let c = '-k 1,2 -r'
+        let c = '-k 1 -r'
     elseif (a:key == 's')
-        let c = '-k 3 -n -r'
+        let c = '-k 2 -n -r'
     elseif (a:key == 'n')
+        let c = '-k 3 -r -b --ignore-case'
+    elseif (a:key == 'f')
         let c = '-k 4 -r -b --ignore-case'
     elseif (a:key == 'T')
-        let c = '-k 1,2'
+        let c = '-k 1'
     elseif (a:key == 'S')
-        let c = '-k 3 -n'
+        let c = '-k 2 -n'
     elseif (a:key == 'N')
+        let c = '-k 3 -b --ignore-case'
+    elseif (a:key == 'F')
         let c = '-k 4 -b --ignore-case'
     else
     endif
 
-    let cmd = ':1,$ !"' . s:cide_shell_sort . '" ' . c . ' --ignore-case'
-    " echo cmd
+    let cmd = ':1,$ !"' . s:cide_shell_sort . '" -t "|" ' . c . ' --ignore-case'
+    " echom cmd
     silent! exec cmd
     setlocal nomodifiable
 
@@ -2392,7 +2405,11 @@ function! s:RunFind()
     endif
     let s:cide_find_options = find_options
 
-    let cmd = '"'.s:cide_shell_find.'" . '.find_options.' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS %-14s %P\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
+          1                   21               38                     61
+    "     2019-11-25 21:33:08 | 6012           | o.txt                | .
+    " let fmt2 = '%-14s | %-20f'
+    let fmt2 = '%-' . s:cide_findwin_cols_size . 's | %-' . s:cide_findwin_cols_name . 'f'
+    let cmd = '"'.s:cide_shell_find.'" . '.find_options.' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS | ' . fmt2 . ' | %h\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
 
     " echom cmd
     let oldpath = s:ChangeDirectory(s:find_opt_dir) " save original directory
@@ -2419,17 +2436,19 @@ function! s:RunFind()
         silent! setlocal nowrap
         silent! setlocal nonumber
         silent! setlocal nobuflisted
+        " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
+        nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('v')<CR>
         nnoremap <buffer> <silent> v :call <SID>CB_FindWinViewCurrentItem('v')<CR>
         nnoremap <buffer> <silent> V :call <SID>CB_FindWinViewCurrentItem('V')<CR>
-        " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
         nnoremap <buffer> <silent> o :call <SID>CB_FindWinViewCurrentItem('o')<CR>
-        nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('v')<CR>
-        nnoremap <buffer> <silent> t :call <SID>CB_FindWinSort('t')<CR>
-        nnoremap <buffer> <silent> s :call <SID>CB_FindWinSort('s')<CR>
-        nnoremap <buffer> <silent> n :call <SID>CB_FindWinSort('n')<CR>
-        nnoremap <buffer> <silent> T :call <SID>CB_FindWinSort('T')<CR>
-        nnoremap <buffer> <silent> S :call <SID>CB_FindWinSort('S')<CR>
-        nnoremap <buffer> <silent> N :call <SID>CB_FindWinSort('N')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>t :call <SID>CB_FindWinSort('t')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>s :call <SID>CB_FindWinSort('s')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>n :call <SID>CB_FindWinSort('n')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>f :call <SID>CB_FindWinSort('f')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>T :call <SID>CB_FindWinSort('T')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>S :call <SID>CB_FindWinSort('S')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>N :call <SID>CB_FindWinSort('N')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>F :call <SID>CB_FindWinSort('F')<CR>
     endif
 
     " --- let nLines = s:PopulateQueryResult(a:idx)
@@ -2469,6 +2488,12 @@ function! s:RunFind()
     " --- endfunction
     " echo str
     " echom str " report summary
+
+    syntax on
+    set conceallevel=2
+    syntax match FileNameHide /^.\{60}[^|]\+|/hs=s+59,he=e-1 conceal cchar=~
+    highlight Conceal guifg=#00FF00 guibg=NONE gui=NONE term=bold
+
     return
 endfunction
 
