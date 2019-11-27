@@ -2288,12 +2288,12 @@ function! s:CB_FindWinViewCurrentItem(key)
     " echom "fname_abs=".fname_abs
     if (a:key == 'o')
         if has('win32') || has ('win64') || has('win32unix')
-            exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname
+            exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname_abs
             " let out = system('start rundll32 url.dll,FileProtocolHandler '.fname)
         elseif has("unix") && executable("xdg-open")
-           exec 'silent! !xdg-open '.fname
+           exec 'silent! !xdg-open '.fname_abs
         elseif has("macunix") && executable("open")
-           exec 'silent! !open '.fname
+           exec 'silent! !open '.fname_abs
         else
         endif
         " echom "out=".out." v:shell_error=".v:shell_error
