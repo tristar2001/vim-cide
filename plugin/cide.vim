@@ -2499,7 +2499,7 @@ function! s:RunFind()
     " echo str
     " echom str " report summary
 
-    syntax on
+    " syntax on
     set conceallevel=2
     syntax match FileNameHide /^.\{60}[^|]\+|/hs=s+52,he=e-8 conceal cchar=~
     highlight Conceal guifg=#00FF00 guibg=NONE gui=NONE term=bold
