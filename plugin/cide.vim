@@ -231,6 +231,16 @@ function! s:ExecVimCmdOutput(cmd)
     let &verbose = old_verbose
 endfunction
 
+function! s:MyTest2()
+    let num = 255
+    while num >= 0
+        exec 'hi col_'.num.' ctermbg='.num.' ctermfg=white'
+        exec 'syn match col_'.num.' "ctermbg='.num.':...." containedIn=ALL'
+        call append(0, 'ctermbg='.num.':....')
+        let num = num - 1
+    endwhile
+endfunction
+
 function! s:RebuildCscopeSub()
     let curpath0 = expand("%:p:h")
     let curpath0 = input("Build cscope.out under: ", curpath0)
@@ -488,8 +498,8 @@ function! s:GetCodeWindow()
     let i = 1
     while winbufnr(i) != -1
         if getwinvar(i, 'window_cidemark') == s:CIDE_WIN_CODE_MARK
-            "	 let test = winbufnr(i)
-            "	 echo "winbufnr=".test." title=".bufname(test)
+            " let test = winbufnr(i)
+            " echo "winbufnr=".test." title=".bufname(test)
             let winnum = i
             break
         endif
@@ -863,7 +873,7 @@ function! s:CB_SelectQuery()
     let resize = 0 " CHECKME
     let &report  = save_rep
     let &showcmd = save_sc
-    call s:OpenQueryListQueryResult()	
+    call s:OpenQueryListQueryResult()
     " move to beginning of line
     :normal 0
     call s:MarkLine(s:cide_cur_sel_query)
@@ -1114,7 +1124,7 @@ function! <SID>SaveHist()
 endfunction
 
 function! s:CscopeCase()
-    "	echo "cur=" . a:cur
+    " echo "cur=" . a:cur
     if s:cide_flag_cscope_case == 1
         let s:cide_flag_cscope_case =  0
         unmenu &CIDE.CscopeCase
@@ -1122,12 +1132,12 @@ function! s:CscopeCase()
     else
         let s:cide_flag_cscope_case =  1
         unmenu &CIDE.CscopeNoCase
-        menu <silent> &CIDE.CscopeCase :CscopeCase<CR>	
+        menu <silent> &CIDE.CscopeCase :CscopeCase<CR>
     endif
 endfunction
 
 function! s:UniqueNames()
-    "	echo "cur=" . a:cur
+    " echo "cur=" . a:cur
     if s:cide_flag_unique_names == 1
         let s:cide_flag_unique_names =  0
         unmenu CodeTree.UniqueName
@@ -1136,7 +1146,7 @@ function! s:UniqueNames()
     else
         let s:cide_flag_unique_names =  1
         unmenu CodeTree.NonuniqueName
-        menu <silent> CodeTree.UniqueName :MyUniqueNames<CR>	
+        menu <silent> CodeTree.UniqueName :MyUniqueNames<CR>
     endif
 endfunction
 
@@ -1505,7 +1515,7 @@ function! s:InitCodeTreeWin()
         if has('gui_running') || &t_Co > 2
             highlight SyntaxFuncName guifg=#6699FF
             highlight SyntaxFileName guifg=#FF66CC
-            "	highlight SyntaxFuncNameOK0 guifg=#00FF00
+            " highlight SyntaxFuncNameOK0 guifg=#00FF00
             highlight SyntaxFuncNameOK guifg=#00FF00
             highlight SyntaxFuncNameDef guifg=#FFFF00
             highlight SyntaxFuncNameCur1 guifg=#00FF00 guibg=#990033
@@ -1513,8 +1523,8 @@ function! s:InitCodeTreeWin()
             highlight SyntaxFuncNameCurRoot guifg=#00FF00 guibg=#990033
             highlight SyntaxFuncNameFolded0 guifg=#FF0000
             highlight SyntaxFuncNameFolded1 guifg=#FF0000
-            "	highlight link SyntaxCalleeTreeRoot comment 
-            "	highlight link SyntaxCallerTreeRoot comment
+            " highlight link SyntaxCalleeTreeRoot comment 
+            " highlight link SyntaxCallerTreeRoot comment
         endif
     endif
 endfunction
@@ -2491,7 +2501,7 @@ function! s:RunFind()
 
     syntax on
     set conceallevel=2
-    syntax match FileNameHide /^.\{60}[^|]\+|/hs=s+59,he=e-1 conceal cchar=~
+    syntax match FileNameHide /^.\{60}[^|]\+|/hs=s+52,he=e-8 conceal cchar=~
     highlight Conceal guifg=#00FF00 guibg=NONE gui=NONE term=bold
 
     return
@@ -2585,6 +2595,7 @@ command! -nargs=* DeleteUnder               call <SID>DeleteUnder()
 command! -nargs=* ClearRedundant            call <SID>ClearRedundant()
 command! -nargs=* SaveBackup                call <SID>SaveBackup()
 command! -nargs=* MyTest    silent!         call <SID>ExecVimCmdOutput("cs show")
+command! -nargs=* MyTest2                   call <SID>MyTest2()
 command! -nargs=* ShellCommander            call <SID>ShellCommander()
 
 " Define short cuts
