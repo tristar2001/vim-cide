@@ -91,7 +91,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
 
     call s:InitVarGlobal('cide_findwin_cols_time', 19)
-    call s:InitVarGlobal('cide_findwin_cols_size', 14)
+    call s:InitVarGlobal('cide_findwin_cols_size', 20)
     call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
         call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
@@ -119,9 +119,11 @@ function! s:InitVars()
     let s:CIDE_WIN_TITLE_GREPOPTIONS    = "Options"
     let s:CIDE_WIN_TITLE_SHELL_OUT      = "ShellOutput"
     let s:CIDE_WIN_TITLE_FINDFILE       = "FindResult"
-    let s:CIDE_WIN_CODE_MARK            = "CODEWINDOW"
+    let s:CIDE_WIN_TITLE_PREVIEW        = "CidePreview"
     let s:CIDE_RES_IND_MARK             = "<=="
     let s:CIDE_SHELL_QUOTE_CHAR         = '"' " Character to use to quote patterns and filenames before passing to grep.
+
+    let s:cide_winid_preview            = -1
 
     " Load default cide config path
     let s:cide_cur_cfg_path             = ""
@@ -153,7 +155,8 @@ function! s:InitVars()
     let s:cide_flag_unique_names        = 1
 
     " Mark code window
-    let w:window_cidemark           = s:CIDE_WIN_CODE_MARK
+    let s:cide_winid_code               = win_getid()
+    let s:cide_winid_findwin            = -1
 endfunction
 
 " Initialize global variables
@@ -405,11 +408,7 @@ function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
 endfunction "end of GetCscopeResult
 
 function! s:GotoCodeWindow()
-    let winnum = s:GetCodeWindow()
-    if winnum == -1
-        return
-    endif
-    call s:GotoWindow(winnum)    
+    return win_gotoid(s:cide_winid_code)
 endfunction
 
 " Run the specified cscope command
@@ -493,21 +492,6 @@ function! s:RedrawQueryListQueryResult()
     set nobuflisted
 endfunction
 
-function! s:GetCodeWindow()
-    let winnum = -1
-    let i = 1
-    while winbufnr(i) != -1
-        if getwinvar(i, 'window_cidemark') == s:CIDE_WIN_CODE_MARK
-            " let test = winbufnr(i)
-            " echo "winbufnr=".test." title=".bufname(test)
-            let winnum = i
-            break
-        endif
-        let i = i + 1
-    endwhile
-    return winnum
-endfunction
-
 function! s:OpenViewFile(fname, lineno, basedir)
     if(a:fname=="")
         return
@@ -529,15 +513,10 @@ function! s:OpenViewFile(fname, lineno, basedir)
         let fname0=fnamemodify(fname0,":.")
     endif
 
-    " echo fname0
-    let winnum = s:GetCodeWindow()
-    if winnum == -1
-        "      echo "ACS window not found!"
+    if (0 == win_gotoid(s:cide_winid_code))
         :top new
-        let w:window_cidemark = s:CIDE_WIN_CODE_MARK
-        let winnum = s:GetCodeWindow()
+        let s:cide_winid_code = win_getid()
     endif
-    call s:GotoWindow(winnum)
 
     let tmpbuf = bufnr('^'.fname0.'$')
     if (tmpbuf>0) "exists
@@ -567,8 +546,11 @@ function! s:OpenViewFile(fname, lineno, basedir)
 
         silent! exec 'edit ' . fname0
         "exec 'edit ' . fname0
-        let winnum = s:GetCodeWindow()
-        call s:GotoWindow(winnum) "goto codewindow to prevent window change by taglist
+        "
+        " if (0 == win_gotoid(s:cide_winid_code))
+        "     :top new
+        "     let s:cide_winid_code = win_getid()
+        " endif
 
         let tmpname = bufname("%")
         let tmpname = fnamemodify(tmpname,":p")
@@ -651,6 +633,25 @@ function! s:CreateWindow(cmd, bufname)
     setlocal modifiable
 endfunction
 
+function! s:CreateWindowEx(cmd, bufname, str)
+    set noequalalways 
+    let cmdstr =  a:cmd." ".a:bufname
+    exec cmdstr
+    call s:GotoWindowByName(a:bufname)
+    setlocal modifiable
+    if (len(a:str) > 0)
+        call append(0, a:str)
+    endif
+    setlocal nomodifiable
+    silent! setlocal buftype=nofile
+    silent! setlocal bufhidden=delete
+    silent! setlocal noswapfile
+    silent! setlocal nowrap
+    silent! setlocal nonumber
+    silent! setlocal nobuflisted
+    return win_getid()
+endfunction
+
 function! s:SetQueryResultWinSyntax()
     let &scrolloff = 0
     if has('syntax')
@@ -701,7 +702,8 @@ function! s:SetQueryResultWinSyntax()
                 highlight link QResIndicatorMarker MyQResIndicatorMarker
             else
                 highlight clear QResIndicatorMarker
-                highlight QResIndicatorMarker guifg=#FFFF00 guibg=#0000FF
+                " highlight QResIndicatorMarker guifg=#FFFF00 guibg=#0000FF
+                highlight QResIndicatorMarker guibg=#5fd700 guifg=#000000 
             endif
         else
             highlight QResActive term=reverse cterm=reverse
@@ -711,15 +713,7 @@ endfunction
 
 " Initializes the query result window
 function! s:InitQueryResultWin()
-    call s:CreateWindow('botright 10new', s:CIDE_WIN_TITLE_QUERYRES)
-    call append(0,"Results for ")
-    setlocal nomodifiable
-    silent! setlocal buftype=nofile
-    silent! setlocal bufhidden=delete
-    silent! setlocal noswapfile
-    silent! setlocal nowrap
-    silent! setlocal nonumber
-    silent! setlocal nobuflisted
+    call s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_QUERYRES, "Results for ")
     nnoremap <buffer> <silent> <CR> :call <SID>CB_ViewCurrentQueryResultItem()<CR>
     nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_ViewCurrentQueryResultItem()<CR>
     " call s:SetQueryResultWinSyntax()
@@ -727,15 +721,7 @@ endfunction
 
 " Initializes the query list window
 function! s:InitQueryListWin()
-    call s:CreateWindow('15vnew', s:CIDE_WIN_TITLE_QUERYLIST)
-    "   call append(0,"Queries")
-    setlocal nomodifiable
-    silent! setlocal buftype=nofile
-    silent! setlocal bufhidden=delete
-    silent! setlocal noswapfile
-    silent! setlocal nowrap
-    silent! setlocal nonumber
-    silent! setlocal nobuflisted
+    call s:CreateWindowEx('15vnew', s:CIDE_WIN_TITLE_QUERYLIST, "")
     nnoremap <buffer> <silent> <CR>             :call <SID>CB_SelectQuery()<CR>
     nnoremap <buffer> <silent> d                :call <SID>CB_DeleteQuery(0)<CR>
     nnoremap <buffer> <silent> u                :call <SID>CB_UpdateQuery()<CR>
@@ -786,7 +772,8 @@ function! s:InitQueryListWin()
                 highlight link QListIndicatorMarker MyQListIndicatorMarker
             else
                 highlight clear QListIndicatorMarker
-                highlight QListIndicatorMarker guifg=#FFFF00 guibg=#0000FF
+                " highlight QListIndicatorMarker guifg=#FFFF00 guibg=#0000FF
+                highlight QListIndicatorMarker guibg=#5fd700 guifg=#000000 
             endif
         endif
     endif
@@ -1555,13 +1542,10 @@ function! s:OpenCodeTree(iType)
         endif
     endif
     if (bNew == 1)
-        let winnum = s:GetCodeWindow()
-        if winnum == -1
-            echo "ACS window not found!"
-            return 0
+        if (0 == win_gotoid(s:cide_winid_code))
+            call s:MsgError("ACS window not found!")
         endif
-        redraw
-        call s:GotoWindow(winnum)
+
         call s:CreateWindow('botright 10new', s:CIDE_WIN_TITLE_CALLERTREE)
         "      exec 'botright 10new '. s:CIDE_WIN_TITLE_CALLERTREE
         redraw
@@ -2110,22 +2094,14 @@ function! s:InitGrepOptions()
     let winNum = s:FindWindow(s:CIDE_WIN_TITLE_GREPOPTIONS)
     if (winNum == -1)
         set noequalalways 
-        call s:CreateWindow('botright 1new', s:CIDE_WIN_TITLE_GREPOPTIONS)
         let str = s:GetOptionStr()
-        call append(0,str)
+        call s:CreateWindowEx('botright 1new', s:CIDE_WIN_TITLE_GREPOPTIONS, str)
+        setlocal modifiable
         exe "2d"
         exe 1
         resize 1
         redraw
-        " echom "creating"
         setlocal nomodifiable
-        silent! setlocal buftype=nofile
-        silent! setlocal bufhidden=delete
-        silent! setlocal noswapfile
-        silent! setlocal nowrap
-        silent! setlocal nonumber
-        silent! setlocal nobuflisted " this likely changes the winheight due to buffer management
-        resize 1
         nnoremap <buffer> <silent> o :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> <CR> :call <SID>DoGrepFromOptionWin()<CR>
         nnoremap <buffer> <silent> c :call <SID>GrepOptionWinOnCancel()<CR>
@@ -2270,6 +2246,40 @@ function! s:RunGrepLast()
     return
 endfunction
 
+function! s:FindWinPreview(fname, key)
+    if (0 == win_gotoid(s:cide_winid_preview))
+        " cannot find id
+        let s:cide_winid_preview = s:CreateWindowEx('rightbelow vnew', s:CIDE_WIN_TITLE_PREVIEW, "")
+        if (0 == win_gotoid(s:cide_winid_preview))
+            call s:MsgError("failed to create " . s:CIDE_WIN_TITLE_PREVIEW)
+            return
+        endif
+    endif
+
+    setlocal modifiable
+    " Load file
+    exec 'edit! ' . a:fname
+    " echom '%!cat ' . a:fname
+    " exec '%!cat ' . a:fname
+    setlocal nomodifiable
+    setlocal nobuflisted
+
+    " Back to FindWin
+    call s:GotoWindowByName(s:CIDE_WIN_TITLE_FINDFILE)
+
+    " Move cursor
+    if a:key == 'v'
+        if (line('.') < line('$'))
+            exec "normal j"
+        endif
+    elseif a:key == 'V'
+        if (line('.') > 1)
+            exec "normal k"
+        endif
+    else " a:key == ''
+        " no move
+    end
+endfunction
 
 function! s:CB_FindWinViewCurrentItem(key)
     let curline = getline(".")
@@ -2278,35 +2288,35 @@ function! s:CB_FindWinViewCurrentItem(key)
     let fname = substitute(parts[0], '^\s*\(.\{-}\)\s*$', '\1', '')
     let path_rel = substitute(parts[1], '^\s*\(.\{-}\)\s*$', '\1', '')
     let fname_rel = path_rel . '/' . fname 
-    let fname_abs = '"' . s:find_opt_dir . '/' . fname_rel . '"'
+    let fname_abs = s:find_opt_dir . '/' . fname_rel
     if has('win32') || has ('win64') || has('win32unix')
         let fname_abs = substitute(fname_abs, '/', '\\', 'g')
     endif
+    let fname_quotes =  '"'.fname_abs . '"'
     " echom "fname=".fname
     " echom "path_rel=".path_rel
     " echom "fname_rel=".fname_rel
     " echom "fname_abs=".fname_abs
-    if (a:key == 'o')
+    " echom "fname_quotes=".fname_quotes
+    if (a:key == 'x')
         if has('win32') || has ('win64') || has('win32unix')
-            exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname_abs
-            " let out = system('start rundll32 url.dll,FileProtocolHandler '.fname)
+            exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname_quotes
         elseif has("unix") && executable("xdg-open")
-           exec 'silent! !xdg-open '.fname_abs
+           exec 'silent! !xdg-open '.fname_quotes
         elseif has("macunix") && executable("open")
-           exec 'silent! !open '.fname_abs
+           exec 'silent! !open '.fname_quotes
         else
         endif
         " echom "out=".out." v:shell_error=".v:shell_error
-    elseif (a:key == 'v')
-        call s:OpenViewFile(fname_rel, 1, s:find_opt_dir)
-        call s:GotoWindowByName(s:CIDE_WIN_TITLE_FINDFILE) " back to current window
-    elseif (a:key == 'V')
+    elseif (a:key == 'v' || a:key == 'V' || a:key == '')
+        call s:FindWinPreview(fname_abs, a:key)
+    elseif (a:key == 'g')
         if has('win32') || has ('win64') || has('win32unix')
-            exec 'silent! !start gvim '.fname_abs
+            exec 'silent! !start gvim '.fname_quotes
         elseif has("unix") && executable("xdg-open")
-            exec 'silent! !gvim '.fname_abs
+            exec 'silent! !gvim '.fname_quotes
         elseif has("macunix") && executable("open")
-            exec 'silent! !gvim '.fname_abs
+            exec 'silent! !gvim '.fname_quotes
         endif
     else
     end
@@ -2358,6 +2368,43 @@ function! s:CB_FindWinViewCurrentItem(key)
     " call s:OpenViewFile(fname, linenum, s:QueryBaseDir{s:cide_cur_sel_query})
 endfunction
 
+function! s:FindWinSetSyntax()
+    " syntax on
+    set conceallevel=2
+
+    if hlexists('FindWinFnameHide')
+        syntax clear FindWinFnameHide
+    endif
+
+    if hlexists('FindWinSep')
+        syntax clear FindWinSep
+    endif
+
+    let len3 = s:cide_findwin_cols_time + s:cide_findwin_cols_size + s:cide_findwin_cols_name
+    let match1 = len3 + 7
+    let adjust = len3 - 1
+
+    let cmd =  'syntax match FindWinFnameHide /^.\{' . match1 . '}[^|]\+|/hs=s+' . adjust . ',he=e-8 conceal cchar=~'
+    " echo cmd
+    exec cmd
+    " syntax match FindWinFnameHide /^.\{60}[^|]\+|/hs=s+52,he=e-8 conceal cchar=~
+    highlight Conceal guifg=#00FF00 guibg=NONE gui=NONE term=bold
+
+    " Change color of separators
+    syntax match FindWinSep '|'
+    highlight FindWinSep guifg=#555555
+endfunction
+
+function! s:CB_FindWinFnameWidth(key)
+    if (a:key == '+')
+        let s:cide_findwin_cols_name = s:cide_findwin_cols_name + 1
+    elseif (a:key == '-' && s:cide_findwin_cols_name > 6)
+        let s:cide_findwin_cols_name = s:cide_findwin_cols_name - 1
+    else
+    endif
+    call s:RunFindSub()
+endfunction
+
 function! s:CB_FindWinSort(key)
     setlocal modifiable
     if (a:key == 't')
@@ -2383,11 +2430,109 @@ function! s:CB_FindWinSort(key)
     " echom cmd
     silent! exec cmd
     setlocal nomodifiable
+endfunction
 
+function! s:CB_FindWinHelp()
+    let saved = &cmdheight
+    set cmdheight=10
+    echo ""
+    echo ""
+    echo "=================================================================="
+    echo "Help for the FindWindow"
+    echo "  ?                   : This help message"
+    echo "  <Double-Click>      : Preview"
+    echo "  v                   : Preview and move to the next file"
+    echo "  v                   : Preview and move to the previous file"
+    echo "  g                   : View in gvim"
+    echo "  x                   : Open file with associated program"
+    echo "  <Ctrl-Right>        : Increase column width for file name field"
+    echo "  <Ctrl-Left>         : Decrease column width for file name field"
+    echo "  <Leader><Leader>t   : Sort by file time   in decreased order"
+    echo "  <Leader><Leader>T   : Sort by file time   in increased order"
+    echo "  <Leader><Leader>s   : Sort by file size   in decreased order"
+    echo "  <Leader><Leader>S   : Sort by file size   in increased order"
+    echo "  <Leader><Leader>n   : Sort by file name   in decreased order"
+    echo "  <Leader><Leader>N   : Sort by file name   in increased order"
+    echo "  <Leader><Leader>f   : Sort by folder name in decreased order"
+    echo "  <Leader><Leader>F   : Sort by folder name in increased order"
+    let &cmdheight = saved
 endfunction
 
 function! FileTypeCompletionFind(ArgLead, CmdLine, CursorPos)
     return s:cide_find_filespecs
+endfunction
+
+function! s:RunFindSub()
+          1                   21               38                     61
+    "     2019-11-25 21:33:08 | 6012           | o.txt                | .
+    " let fmt2 = '%-14s | %-20f'
+    let fmt2 = '%-' . s:cide_findwin_cols_size . 's | %-' . s:cide_findwin_cols_name . 'f'
+    let cmd = '"'.s:cide_shell_find.'" . ' . s:cide_find_options .' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS | ' . fmt2 . ' | %h\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
+
+    " echom cmd
+    let oldpath = s:ChangeDirectory(s:find_opt_dir) " save original directory
+    let s:cscope_cmd_out_find = system(cmd)
+    call s:ChangeDirectory(oldpath) " restore original directory
+
+    if (s:cscope_cmd_out_find == "" || strlen(s:cscope_cmd_out_find)<5)
+        return 0
+    endif
+    let tmpfile = tempname()
+    call s:SaveStrToFile(s:cscope_cmd_out_find, tmpfile)
+    " --- call s:OpenQueryListQueryResult()
+    " let nLines = s:PopulateQueryResult(a:idx)
+
+    if (0 == win_gotoid(s:cide_winid_findwin))
+        let s:cide_winid_findwin = s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_FINDFILE, "")
+        if (s:cide_winid_findwin < 0)
+            return
+        endif
+        " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
+        nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('')<CR>
+        nnoremap <buffer> <silent> v :call <SID>CB_FindWinViewCurrentItem('v')<CR>
+        nnoremap <buffer> <silent> V :call <SID>CB_FindWinViewCurrentItem('V')<CR>
+        nnoremap <buffer> <silent> g :call <SID>CB_FindWinViewCurrentItem('g')<CR>
+        nnoremap <buffer> <silent> x :call <SID>CB_FindWinViewCurrentItem('x')<CR>
+        nnoremap <buffer> <silent> ? :call <SID>CB_FindWinHelp()<CR>
+        nnoremap <buffer> <silent> <C-Right> :call <SID>CB_FindWinFnameWidth('+')<CR>
+        nnoremap <buffer> <silent> <C-Left> :call <SID>CB_FindWinFnameWidth('-')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>t :call <SID>CB_FindWinSort('t')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>s :call <SID>CB_FindWinSort('s')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>n :call <SID>CB_FindWinSort('n')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>f :call <SID>CB_FindWinSort('f')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>T :call <SID>CB_FindWinSort('T')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>S :call <SID>CB_FindWinSort('S')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>N :call <SID>CB_FindWinSort('N')<CR>
+        nnoremap <buffer> <silent> <Leader><Leader>F :call <SID>CB_FindWinSort('F')<CR>
+    endif
+
+    "delete all content
+    setlocal modifiable
+    exe '1,$delete'
+    silent! exe "read ". tmpfile
+    1d
+    " if (v:version >= 700)
+    "     " sort
+    " endif
+    let nLines = line("$")
+    let str = ' >>> ' . nLines . ' files were found under "'. s:find_opt_dir . '"'
+    " call append(0, str)
+    " call append(1, '[v]Modified Time    [ ]Size        [ ]Name')
+ "   " silent! exec "%s/\r//g"
+ "   silent! exec ":%s/\r$//"
+    silent! setlocal nomodifiable
+    exec 1
+    setlocal number
+    redraw
+ "  let s:cide_cur_sel_query = a:qidx
+ "  call s:MarkLine(s:QueryCurIdx{a:qidx}+1)
+ "  redraw
+    " --- endfunction
+    " echo str
+    " report summary
+    echom str . " (press ? for help)" 
+
+    call s:FindWinSetSyntax()
 endfunction
 
 function! s:RunFind()
@@ -2413,98 +2558,10 @@ function! s:RunFind()
     if find_options == ""
         return
     endif
+
     let s:cide_find_options = find_options
 
-          1                   21               38                     61
-    "     2019-11-25 21:33:08 | 6012           | o.txt                | .
-    " let fmt2 = '%-14s | %-20f'
-    let fmt2 = '%-' . s:cide_findwin_cols_size . 's | %-' . s:cide_findwin_cols_name . 'f'
-    let cmd = '"'.s:cide_shell_find.'" . '.find_options.' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS | ' . fmt2 . ' | %h\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
-
-    " echom cmd
-    let oldpath = s:ChangeDirectory(s:find_opt_dir) " save original directory
-    let s:cscope_cmd_out_find = system(cmd)
-    call s:ChangeDirectory(oldpath) " restore original directory
-
-    if (s:cscope_cmd_out_find == "" || strlen(s:cscope_cmd_out_find)<5)
-        return 0
-    endif
-    let tmpfile = tempname()
-    call s:SaveStrToFile(s:cscope_cmd_out_find, tmpfile)
-    " --- call s:OpenQueryListQueryResult()
-    " let nLines = s:PopulateQueryResult(a:idx)
-
-    let winNumQR = s:FindWindow(s:CIDE_WIN_TITLE_FINDFILE)
-    if winNumQR == -1
-        " --- call s:InitQueryResultWin()
-        call s:CreateWindow('botright 10new', s:CIDE_WIN_TITLE_FINDFILE)
-        " call append(0,"Results for ")
-        setlocal nomodifiable
-        silent! setlocal buftype=nofile
-        silent! setlocal bufhidden=delete
-        silent! setlocal noswapfile
-        silent! setlocal nowrap
-        silent! setlocal nonumber
-        silent! setlocal nobuflisted
-        " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
-        nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('v')<CR>
-        nnoremap <buffer> <silent> v :call <SID>CB_FindWinViewCurrentItem('v')<CR>
-        nnoremap <buffer> <silent> V :call <SID>CB_FindWinViewCurrentItem('V')<CR>
-        nnoremap <buffer> <silent> o :call <SID>CB_FindWinViewCurrentItem('o')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>t :call <SID>CB_FindWinSort('t')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>s :call <SID>CB_FindWinSort('s')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>n :call <SID>CB_FindWinSort('n')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>f :call <SID>CB_FindWinSort('f')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>T :call <SID>CB_FindWinSort('T')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>S :call <SID>CB_FindWinSort('S')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>N :call <SID>CB_FindWinSort('N')<CR>
-        nnoremap <buffer> <silent> <Leader><Leader>F :call <SID>CB_FindWinSort('F')<CR>
-    endif
-
-    " --- let nLines = s:PopulateQueryResult(a:idx)
-    let qres_win = s:FindWindow(s:CIDE_WIN_TITLE_FINDFILE)
-    if (qres_win == -1)
-        call s:MsgError("failed to find FindResult windows")
-        return 0
-    endif
-
-    "goto find result window
-    call s:GotoWindow(qres_win)
-
-    " Set syntax
-    " TBD call s:SetQueryResultWinSyntax()
-
-    "delete all content
-    setlocal modifiable
-    exe '1,$delete'
-    silent! exe "read ". tmpfile
-    1d
-    " if (v:version >= 700)
-    "     " sort
-    " endif
-    let nLines = line("$")
-    let str = ' >>> ' . nLines . ' files were found under "'. s:find_opt_dir . '"'
-    " call append(0, str)
-    " call append(1, '[v]Modified Time    [ ]Size        [ ]Name')
- "   " silent! exec "%s/\r//g"
- "   silent! exec ":%s/\r$//"
-    silent! setlocal nomodifiable
-    exec 1
-    set number
-    redraw
- "  let s:cide_cur_sel_query = a:qidx
- "  call s:MarkLine(s:QueryCurIdx{a:qidx}+1)
- "  redraw
-    " --- endfunction
-    " echo str
-    " echom str " report summary
-
-    " syntax on
-    set conceallevel=2
-    syntax match FileNameHide /^.\{60}[^|]\+|/hs=s+52,he=e-8 conceal cchar=~
-    highlight Conceal guifg=#00FF00 guibg=NONE gui=NONE term=bold
-
-    return
+    call s:RunFindSub()
 endfunction
 
 function! s:CB_ShellCommanderOpenWin()
