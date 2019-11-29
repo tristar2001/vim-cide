@@ -630,6 +630,7 @@ function! s:CreateWindow(cmd, bufname)
     let cmdstr =  a:cmd." ".a:bufname
     exec cmdstr
     call s:GotoWindowByName(a:bufname)
+    silent! setlocal colorcolumn=0
     setlocal modifiable
 endfunction
 
@@ -649,6 +650,8 @@ function! s:CreateWindowEx(cmd, bufname, str)
     silent! setlocal nowrap
     silent! setlocal nonumber
     silent! setlocal nobuflisted
+    silent! setlocal colorcolumn=0
+    let w:mark_CursorLineDisable = 1
     return win_getid()
 endfunction
 
@@ -837,6 +840,7 @@ function! s:MarkLine(lineno)
     let curline = getline(a:lineno)
     call setline(a:lineno, curline." ".s:CIDE_RES_IND_MARK)
     setlocal nomodifiable
+    setlocal nocursorline
     " goto lineno
     exec a:lineno
 endfunction
@@ -2265,7 +2269,9 @@ function! s:FindWinPreview(fname, key)
     setlocal nobuflisted
 
     " Back to FindWin
-    call s:GotoWindowByName(s:CIDE_WIN_TITLE_FINDFILE)
+    if (0 == win_gotoid(s:cide_winid_findwin))
+        call s:MsgError("failed to goto findwin")
+    endif
 
     " Move cursor
     if a:key == 'v'
@@ -2310,6 +2316,10 @@ function! s:CB_FindWinViewCurrentItem(key)
         " echom "out=".out." v:shell_error=".v:shell_error
     elseif (a:key == 'v' || a:key == 'V' || a:key == '')
         call s:FindWinPreview(fname_abs, a:key)
+    elseif (a:key == 'e' || a:key == 'E')
+        call s:OpenViewFile(fname_rel, 1, s:find_opt_dir) 
+        " Back to findwin
+        call win_gotoid(s:cide_winid_findwin)
     elseif (a:key == 'g')
         if has('win32') || has ('win64') || has('win32unix')
             exec 'silent! !start gvim '.fname_quotes
@@ -2405,24 +2415,41 @@ function! s:CB_FindWinFnameWidth(key)
     call s:RunFindSub()
 endfunction
 
+function! s:FindWinUpdateStatus(sortby)
+    " Clear file
+    " exec '0file'
+    let cmd = "keepalt  file FindResult (sorted by '" . toupper(a:sortby[0]).a:sortby[1:] . "'); 'h' for Help"
+    silent! exec cmd
+    " Clear message
+    silent! echo "" 
+endfunction
+
 function! s:CB_FindWinSort(key)
     setlocal modifiable
     if (a:key == 't')
         let c = '-k 1 -r'
+        let sortby = 'time[v]'
     elseif (a:key == 's')
         let c = '-k 2 -n -r'
+        let sortby = 'size[v]'
     elseif (a:key == 'n')
         let c = '-k 3 -r -b --ignore-case'
+        let sortby = 'name[v]'
     elseif (a:key == 'f')
         let c = '-k 4 -r -b --ignore-case'
+        let sortby = 'folder[v]'
     elseif (a:key == 'T')
         let c = '-k 1'
+        let sortby = 'time[^]'
     elseif (a:key == 'S')
         let c = '-k 2 -n'
+        let sortby = 'size[^]'
     elseif (a:key == 'N')
         let c = '-k 3 -b --ignore-case'
+        let sortby = 'name[^]'
     elseif (a:key == 'F')
         let c = '-k 4 -b --ignore-case'
+        let sortby = 'folder[^]'
     else
     endif
 
@@ -2430,6 +2457,8 @@ function! s:CB_FindWinSort(key)
     " echom cmd
     silent! exec cmd
     setlocal nomodifiable
+
+    call s:FindWinUpdateStatus(sortby)
 endfunction
 
 function! s:CB_FindWinHelp()
@@ -2439,10 +2468,11 @@ function! s:CB_FindWinHelp()
     echo ""
     echo "=================================================================="
     echo "Help for the FindWindow"
-    echo "  ?                   : This help message"
+    echo "  ?|h                 : This help message"
     echo "  <Double-Click>      : Preview"
+    echo "  e                   : Edit in main code window"
     echo "  v                   : Preview and move to the next file"
-    echo "  v                   : Preview and move to the previous file"
+    echo "  V                   : Preview and move to the previous file"
     echo "  g                   : View in gvim"
     echo "  x                   : Open file with associated program"
     echo "  <Ctrl-Right>        : Increase column width for file name field"
@@ -2489,11 +2519,13 @@ function! s:RunFindSub()
         endif
         " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
         nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('')<CR>
+        nnoremap <buffer> <silent> e :call <SID>CB_FindWinViewCurrentItem('e')<CR>
         nnoremap <buffer> <silent> v :call <SID>CB_FindWinViewCurrentItem('v')<CR>
         nnoremap <buffer> <silent> V :call <SID>CB_FindWinViewCurrentItem('V')<CR>
         nnoremap <buffer> <silent> g :call <SID>CB_FindWinViewCurrentItem('g')<CR>
         nnoremap <buffer> <silent> x :call <SID>CB_FindWinViewCurrentItem('x')<CR>
         nnoremap <buffer> <silent> ? :call <SID>CB_FindWinHelp()<CR>
+        nnoremap <buffer> <silent> h :call <SID>CB_FindWinHelp()<CR>
         nnoremap <buffer> <silent> <C-Right> :call <SID>CB_FindWinFnameWidth('+')<CR>
         nnoremap <buffer> <silent> <C-Left> :call <SID>CB_FindWinFnameWidth('-')<CR>
         nnoremap <buffer> <silent> <Leader><Leader>t :call <SID>CB_FindWinSort('t')<CR>
@@ -2521,6 +2553,9 @@ function! s:RunFindSub()
  "   " silent! exec "%s/\r//g"
  "   silent! exec ":%s/\r$//"
     silent! setlocal nomodifiable
+
+    call s:FindWinUpdateStatus('time[v]')
+
     exec 1
     setlocal number
     redraw
