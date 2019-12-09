@@ -2525,6 +2525,8 @@ function! s:RunFindSub()
         if (s:cide_winid_findwin < 0)
             return
         endif
+        " diable conceal on cursor line
+        set concealcursor=
         " nnoremap <buffer> <silent> <CR> :call <SID>CB_FindWinViewCurrentItem('o')<CR>
         nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_FindWinViewCurrentItem('')<CR>
         nnoremap <buffer> <silent> e :call <SID>CB_FindWinViewCurrentItem('e')<CR>
