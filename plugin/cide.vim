@@ -74,7 +74,7 @@ endfunction
 function! s:InitVars()
     " Initialize global configurable variable default
     if has('win32') || has ('win64') || has('win32unix')
-        let default_cide_shell_find = s:GetGnuWinExeDefault('find', 'C:/Program Files/Git/usr/bin/sort.exe')
+        let default_cide_shell_find = s:GetGnuWinExeDefault('find', 'C:/Program Files/Git/usr/bin/find.exe')
         let default_cide_shell_sort = s:GetGnuWinExeDefault('sort', 'C:/Program Files/Git/usr/bin/sort.exe')
         let default_cide_shell_date = 'date /T'
     else
@@ -91,7 +91,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
 
     call s:InitVarGlobal('cide_findwin_cols_time', 19)
-    call s:InitVarGlobal('cide_findwin_cols_size', 20)
+    call s:InitVarGlobal('cide_findwin_cols_size', 12)
     call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
         call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
@@ -634,7 +634,7 @@ function! s:CreateWindow(cmd, bufname)
     setlocal modifiable
 endfunction
 
-function! s:CreateWindowEx(cmd, bufname, str)
+function! s:CreateWindowEx(cmd, bufname, str, hascursorline)
     set noequalalways 
     let cmdstr =  a:cmd." ".a:bufname
     exec cmdstr
@@ -651,7 +651,15 @@ function! s:CreateWindowEx(cmd, bufname, str)
     silent! setlocal nonumber
     silent! setlocal nobuflisted
     silent! setlocal colorcolumn=0
-    let w:mark_CursorLineDisable = 1
+    if (a:hascursorline != 0)
+        if exists('w:mark_CursorLineDisable')
+            unlet w:mark_CursorLineDisable
+        endif
+        silent! setlocal cursorline
+    else
+        let w:mark_CursorLineDisable = 1
+        silent! setlocal nocursorline
+    endif
     return win_getid()
 endfunction
 
@@ -716,7 +724,7 @@ endfunction
 
 " Initializes the query result window
 function! s:InitQueryResultWin()
-    call s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_QUERYRES, "Results for ")
+    call s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_QUERYRES, "Results for ", 0)
     nnoremap <buffer> <silent> <CR> :call <SID>CB_ViewCurrentQueryResultItem()<CR>
     nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>CB_ViewCurrentQueryResultItem()<CR>
     " call s:SetQueryResultWinSyntax()
@@ -724,7 +732,7 @@ endfunction
 
 " Initializes the query list window
 function! s:InitQueryListWin()
-    call s:CreateWindowEx('15vnew', s:CIDE_WIN_TITLE_QUERYLIST, "")
+    call s:CreateWindowEx('15vnew', s:CIDE_WIN_TITLE_QUERYLIST, "", 0)
     nnoremap <buffer> <silent> <CR>             :call <SID>CB_SelectQuery()<CR>
     nnoremap <buffer> <silent> d                :call <SID>CB_DeleteQuery(0)<CR>
     nnoremap <buffer> <silent> u                :call <SID>CB_UpdateQuery()<CR>
@@ -2099,7 +2107,7 @@ function! s:InitGrepOptions()
     if (winNum == -1)
         set noequalalways 
         let str = s:GetOptionStr()
-        call s:CreateWindowEx('botright 1new', s:CIDE_WIN_TITLE_GREPOPTIONS, str)
+        call s:CreateWindowEx('botright 1new', s:CIDE_WIN_TITLE_GREPOPTIONS, str, 0)
         setlocal modifiable
         exe "2d"
         exe 1
@@ -2253,7 +2261,7 @@ endfunction
 function! s:FindWinPreview(fname, key)
     if (0 == win_gotoid(s:cide_winid_preview))
         " cannot find id
-        let s:cide_winid_preview = s:CreateWindowEx('rightbelow vnew', s:CIDE_WIN_TITLE_PREVIEW, "")
+        let s:cide_winid_preview = s:CreateWindowEx('rightbelow vnew', s:CIDE_WIN_TITLE_PREVIEW, "", 0)
         if (0 == win_gotoid(s:cide_winid_preview))
             call s:MsgError("failed to create " . s:CIDE_WIN_TITLE_PREVIEW)
             return
@@ -2418,7 +2426,7 @@ endfunction
 function! s:FindWinUpdateStatus(sortby)
     " Clear file
     " exec '0file'
-    let cmd = "keepalt  file FindResult (sorted by '" . toupper(a:sortby[0]).a:sortby[1:] . "'); 'h' for Help"
+    let cmd = "keepalt  file FindResult (sorted by '" . toupper(a:sortby[0]).a:sortby[1:] . "')"
     silent! exec cmd
     " Clear message
     silent! echo "" 
@@ -2468,7 +2476,7 @@ function! s:CB_FindWinHelp()
     echo ""
     echo "=================================================================="
     echo "Help for the FindWindow"
-    echo "  ?|h                 : This help message"
+    echo "  ?                   : This help message"
     echo "  <Double-Click>      : Preview"
     echo "  e                   : Edit in main code window"
     echo "  v                   : Preview and move to the next file"
@@ -2513,7 +2521,7 @@ function! s:RunFindSub()
     " let nLines = s:PopulateQueryResult(a:idx)
 
     if (0 == win_gotoid(s:cide_winid_findwin))
-        let s:cide_winid_findwin = s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_FINDFILE, "")
+        let s:cide_winid_findwin = s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_FINDFILE, "", 1)
         if (s:cide_winid_findwin < 0)
             return
         endif
@@ -2525,7 +2533,6 @@ function! s:RunFindSub()
         nnoremap <buffer> <silent> g :call <SID>CB_FindWinViewCurrentItem('g')<CR>
         nnoremap <buffer> <silent> x :call <SID>CB_FindWinViewCurrentItem('x')<CR>
         nnoremap <buffer> <silent> ? :call <SID>CB_FindWinHelp()<CR>
-        nnoremap <buffer> <silent> h :call <SID>CB_FindWinHelp()<CR>
         nnoremap <buffer> <silent> <C-Right> :call <SID>CB_FindWinFnameWidth('+')<CR>
         nnoremap <buffer> <silent> <C-Left> :call <SID>CB_FindWinFnameWidth('-')<CR>
         nnoremap <buffer> <silent> <Leader><Leader>t :call <SID>CB_FindWinSort('t')<CR>
@@ -2565,7 +2572,7 @@ function! s:RunFindSub()
     " --- endfunction
     " echo str
     " report summary
-    echom str . " (press ? for help)" 
+    silent! echom str . " (press ? for help)" 
 
     call s:FindWinSetSyntax()
 endfunction
