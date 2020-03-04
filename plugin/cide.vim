@@ -737,7 +737,7 @@ function! s:SetQueryResultWinSyntax()
             else
                 highlight clear QResIndicatorMarker
                 " highlight QResIndicatorMarker guifg=#FFFF00 guibg=#0000FF
-                highlight QResIndicatorMarker guibg=#5fd700 guifg=#000000 
+                highlight QResIndicatorMarker guibg=#5fd700 guifg=#000000 ctermbg=darkgreen ctermfg=black
             endif
         else
             highlight QResActive term=reverse cterm=reverse
