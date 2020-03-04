@@ -71,9 +71,18 @@ function! s:GetGnuWinExeDefault(app, app_default)
     return exepath
 endfunction
 
+function! s:IsWinXX()
+    return (has('win16') || has('win32') || has('win64'))
+endfunction
+
+function! s:IsWinXX_NonNative()
+    " Win bash ( msys or cygwin)
+    return s:IsWinXX() && !(&shell=~#'cmd.exe$')
+endfunction
+
 function! s:InitVars()
     " Initialize global configurable variable default
-    if has('win32') || has ('win64') || has('win32unix')
+    if s:IsWinXX()
         let default_cide_shell_find = s:GetGnuWinExeDefault('find', 'C:/Program Files/Git/usr/bin/find.exe')
         let default_cide_shell_sort = s:GetGnuWinExeDefault('sort', 'C:/Program Files/Git/usr/bin/sort.exe')
         let default_cide_shell_date = 'date /T'
@@ -95,7 +104,14 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
         call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
+
+        if s:IsWinXX_NonNative()
+            let path_sep = "//"
+        else
+            let path_sep = "/"
+        endif
+
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
         " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c, *.cc, *.cpp, *.h, *.hpp, *.mak, *.mk" --sort path')
         " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
     else
