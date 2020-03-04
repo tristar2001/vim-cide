@@ -1,10 +1,10 @@
 " Description:      C-IDE vim plugin
-" Version:          0.8
-" Last Modified:    11/12/2019
+" Version:          0.9
+" Last Modified:    3/3/2020
 "
 " MIT License
 " 
-" Copyright (c) 2005-2019 Jun Huang (tristar2001)
+" Copyright (c) 2005-2020 Jun Huang (tristar2001)
 " 
 " Permission is hereby granted, free of charge, to any person obtaining a copy
 " of this software and associated documentation files (the "Software"), to deal
@@ -80,9 +80,18 @@ function! s:IsWinXX_NonNative()
     return s:IsWinXX() && !(&shell=~#'cmd.exe$')
 endfunction
 
+function! s:IsWinXX_Native()
+    " Win bash ( msys or cygwin)
+    return s:IsWinXX() && (&shell=~#'cmd.exe$')
+endfunction
+
 function! s:InitVars()
+    if s:IsWinXX() && has('gui') && (&shell=~#'bash.exe') " git bash
+        set shell=cmd shellcmdflag=/c shellquote= shellxquote=(
+    endif
+
     " Initialize global configurable variable default
-    if s:IsWinXX()
+    if s:IsWinXX_Native()
         let default_cide_shell_find = s:GetGnuWinExeDefault('find', 'C:/Program Files/Git/usr/bin/find.exe')
         let default_cide_shell_sort = s:GetGnuWinExeDefault('sort', 'C:/Program Files/Git/usr/bin/sort.exe')
         let default_cide_shell_date = 'date /T'
@@ -112,8 +121,6 @@ function! s:InitVars()
         endif
 
         call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
-        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c, *.cc, *.cpp, *.h, *.hpp, *.mak, *.mk" --sort path')
-        " call s:InitVarGlobal('cide_grep_options', ' --path-separator "/" --line-number --color never --no-heading --type-add "cxx:*.c" --sort path')
     else
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
@@ -2319,7 +2326,7 @@ function! s:CB_FindWinViewCurrentItem(key)
     let path_rel = substitute(parts[1], '^\s*\(.\{-}\)\s*$', '\1', '')
     let fname_rel = path_rel . '/' . fname 
     let fname_abs = s:find_opt_dir . '/' . fname_rel
-    if has('win32') || has ('win64') || has('win32unix')
+    if s:IsWinXX()
         let fname_abs = substitute(fname_abs, '/', '\\', 'g')
     endif
     let fname_quotes =  '"'.fname_abs . '"'
@@ -2329,7 +2336,7 @@ function! s:CB_FindWinViewCurrentItem(key)
     " echom "fname_abs=".fname_abs
     " echom "fname_quotes=".fname_quotes
     if (a:key == 'x')
-        if has('win32') || has ('win64') || has('win32unix')
+        if s:IsWinXX() || has('win32unix')
             exec 'silent! !start rundll32 url.dll,FileProtocolHandler '.fname_quotes
         elseif has("unix") && executable("xdg-open")
            exec 'silent! !xdg-open '.fname_quotes
@@ -2345,7 +2352,7 @@ function! s:CB_FindWinViewCurrentItem(key)
         " Back to findwin
         call win_gotoid(s:cide_winid_findwin)
     elseif (a:key == 'g')
-        if has('win32') || has ('win64') || has('win32unix')
+        if s:IsWinXX()
             exec 'silent! !start gvim '.fname_quotes
         elseif has("unix") && executable("xdg-open")
             exec 'silent! !gvim '.fname_quotes
@@ -2354,52 +2361,6 @@ function! s:CB_FindWinViewCurrentItem(key)
         endif
     else
     end
-    " if (idx-1 >  s:QueryNumFounds{s:cide_cur_sel_query})
-    "     return
-    " endif
-    " let s:QueryCurIdx{s:cide_cur_sel_query} = idx-1
-    " " find the window and select it
-    " let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYRES)
-    " if (reswin == -1) 
-    "     return
-    " endif
-
-    " call s:MarkLine(idx)
-
-    " " [open the file and] goto the line number
-    " let linestr = getline(idx)
-
-    " if s:cide_cur_query_type == 'grep'
-    "     let idx_start = 0
-    "     if (linestr[1] == ':' && (linestr[2] == '\\' || linestr[2] == '/'))
-    "         let idx_start = 2
-    "     endif
-    "     let idx_colon1 = stridx(linestr, ":", idx_start)
-    "     if (idx_colon1 < 1)
-    "         call s:MsgError("incorrect format2")
-    "         return
-    "     endif
-    "     let fname = strpart(linestr, idx_start, idx_colon1 - idx_start)
-    "     let idx_colon2 = stridx(linestr, ":", idx_colon1 + 1)
-    "     if (idx_colon2 < 1)
-    "         call s:MsgError("incorrect format3")
-    "         return
-    "     endif
-    "     let linenum= strpart(linestr, idx_colon1 + 1, idx_colon2 - idx_colon1 - 1)
-    " else
-    "     let idx = stridx(linestr, " ")
-    "     if (idx < 1)
-    "         return
-    "     endif
-    "     let fname = strpart(linestr, 0, idx)
-    "     let linestr = strpart(linestr, idx+1)
-    "     let idx = stridx(linestr, " ")
-    "     if (idx < 1)
-    "         return
-    "     endif
-    "     let linenum= strpart(linestr, 0, idx)
-    " endif
-    " call s:OpenViewFile(fname, linenum, s:QueryBaseDir{s:cide_cur_sel_query})
 endfunction
 
 function! s:FindWinSetSyntax()
