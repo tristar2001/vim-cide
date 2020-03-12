@@ -112,7 +112,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_findwin_cols_size', 12)
     call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
-        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tvim", "-tmatlab", '-g "*"'])
+        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tmatlab", "-tpy", "-tmd", "-tvim", '-g "*"'])
 
         if s:IsWinXX_NonNative()
             let path_sep = "//"
@@ -120,7 +120,7 @@ function! s:InitVars()
             let path_sep = "/"
         endif
 
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "cxx:include:cpp,c,make" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "cxx:include:cpp,c,asm,make,cmake" --sort path')
     else
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
@@ -278,7 +278,7 @@ function! s:RebuildCscopeSub()
     endif
     let oldpath = s:ChangeDirectory(curpath0)
     let cscope_files = curpath0 . "/cscope.files"
-    let cmd = '"'.s:cide_shell_find . "\" . -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\)\""
+    let cmd = '"'.s:cide_shell_find . "\" . -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\""
     let cmd = input("Generating " . cscope_files . ': ' , cmd)
     let cmd_out = system(cmd)
     call s:SaveStrToFile(cmd_out, cscope_files) 
