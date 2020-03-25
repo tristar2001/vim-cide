@@ -126,7 +126,7 @@ function! s:InitVars()
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
     endif
 
-    call s:InitVarGlobal('cide_find_filespecs', ['-name "*" -type f', '-name "*"', '-name "*.pdf" -type f'])
+    call s:InitVarGlobal('cide_find_filespecs', ['-type f -name "*"', '-name "*"'])
     call s:InitVarGlobal('cide_find_options', '-maxdepth 999')
 
     let s:cpo_save = &cpo
