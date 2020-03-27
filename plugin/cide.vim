@@ -120,7 +120,7 @@ function! s:InitVars()
             let path_sep = "/"
         endif
 
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "cxx:include:cpp,c,asm,make,cmake" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --sort path')
     else
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
