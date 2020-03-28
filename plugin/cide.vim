@@ -80,6 +80,78 @@ function! s:IsWinXX_NonNative()
     return s:IsWinXX() && !(&shell=~#'cmd.exe$')
 endfunction
 
+function! s:Win_CloseWnum(wnum)
+    if (a:wnum<0)
+        return
+    endif
+    exec a:wnum . "wincmd w"
+    "    :q!
+    close
+endfunction
+
+function! s:Win_FindName(bufName)
+    " Try to find an existing window that contains our buffer.
+    let bufNum = bufnr('^'.a:bufName.'$')
+    if bufNum != -1
+        let winNum = bufwinnr(bufNum)
+    else
+        let winNum = -1
+    endif
+    return winNum
+endfunction
+
+function! s:Win_CloseName(bufname)
+    let wnum = s:Win_FindName(a:bufname)
+    if (wnum != -1)
+        exec wnum . "wincmd w"
+        :q!
+    endif
+    return wnum
+endfunction
+
+function! s:Win_GotoName(bufname)
+    let wnum = s:Win_FindName(a:bufname)
+    if (wnum != -1)
+        exec wnum . "wincmd w"
+    endif
+    return wnum
+endfunction
+
+function! s:Win_GotoWnum(wnum)
+    if (a:wnum<0)
+        return
+    endif
+    exec a:wnum . "wincmd w"
+endfunction
+
+function! s:Win_GetId()
+    if !exists('s:cide_winid_gen')
+        let s:cide_winid_gen = 2000
+    end
+    if strlen(getwinvar(0, 'cide_id')) == 0
+        let s:cide_winid_gen = s:cide_winid_gen + 1
+        let w:cide_id = s:cide_winid_gen
+    end
+    return w:cide_id
+endfunction
+
+function! s:Win_GotoId(id)
+    let wnum = -1
+    let i = 1
+    while winbufnr(i) != -1
+        if getwinvar(i, 'cide_id') == a:id
+            " Found
+            let wnum = i
+            exec wnum . "wincmd w"
+            return 1
+        endif
+        let i = i + 1
+    endwhile
+
+    " Not found
+    return 0 
+endfunction
+
 function! s:IsWinXX_Native()
     " Win bash ( msys or cygwin)
     return s:IsWinXX() && (&shell=~#'cmd.exe$')
@@ -178,8 +250,10 @@ function! s:InitVars()
     let s:cide_flag_unique_names        = 1
 
     " Mark code window
-    let s:cide_winid_code               = win_getid()
+    let s:cide_winid_code               = s:Win_GetId()
     let s:cide_winid_findwin            = -1
+
+    let s:cide_winid_gen                = 2000
 endfunction
 
 " Initialize global variables
@@ -313,42 +387,9 @@ function! s:CheckCscopeConnection()
     endif
 endfunction
 
-function! s:GotoWindow(wnum)
-    if (a:wnum<0)
-        return
-    endif
-    exec a:wnum . "wincmd w"
-endfunction
-
-function! s:CloseWindow(wnum)
-    if (a:wnum<0)
-        return
-    endif
-    exec a:wnum . "wincmd w"
-    "    :q!
-    close
-endfunction
-
-function! s:CloseWindowByName(bufname)
-    let wnum = s:FindWindow(a:bufname)
-    if (wnum != -1)
-        exec wnum . "wincmd w"
-        :q!
-    endif
-    return wnum
-endfunction
-
-function! s:GotoWindowByName(bufname)
-    let wnum = s:FindWindow(a:bufname)
-    if (wnum != -1)
-        exec wnum . "wincmd w"
-    endif
-    return wnum
-endfunction
-
 " Adds content to the query result window.
 function! s:PopulateQueryResult(qidx)
-    let qres_win = s:FindWindow(s:CIDE_WIN_TITLE_QUERYRES)
+    let qres_win = s:Win_FindName(s:CIDE_WIN_TITLE_QUERYRES)
     if (qres_win == -1)
         call s:MsgError("failed to find QueryResult windows")
         return 0
@@ -358,7 +399,7 @@ function! s:PopulateQueryResult(qidx)
     let s:cide_cur_query_type = split(s:QueryCommand{a:qidx})[0]
 
     "goto query res window
-    call s:GotoWindow(qres_win)
+    call s:Win_GotoWnum(qres_win)
 
     " Set syntax
     call s:SetQueryResultWinSyntax()
@@ -431,7 +472,7 @@ function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
 endfunction "end of GetCscopeResult
 
 function! s:GotoCodeWindow()
-    return win_gotoid(s:cide_winid_code)
+    return s:Win_GotoId(s:cide_winid_code)
 endfunction
 
 " Run the specified cscope command
@@ -456,17 +497,6 @@ function! s:RunCscope(cmd_num, patt)
     call s:GotoCodeWindow()
 endfunction
 
-function! s:FindWindow(bufName)
-    " Try to find an existing window that contains our buffer.
-    let bufNum = bufnr('^'.a:bufName.'$')
-    if bufNum != -1
-        let winNum = bufwinnr(bufNum)
-    else
-        let winNum = -1
-    endif
-    return winNum
-endfunction
-
 function! s:BuildQueryListItem(cmd, cnt, pat)
     let tstr = a:cnt
     let tstr = tstr . " "
@@ -486,7 +516,7 @@ function! s:RedrawQueryListQueryResult()
         let ii = ii +1
     endwhile
 
-    let winNumQL = s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYLIST)
+    let winNumQL = s:Win_GotoName(s:CIDE_WIN_TITLE_QUERYLIST)
     if winNumQL == -1
         call s:MsgError("QueryList window is not on focus")
         return
@@ -536,9 +566,9 @@ function! s:OpenViewFile(fname, lineno, basedir)
         let fname0=fnamemodify(fname0,":.")
     endif
 
-    if (0 == win_gotoid(s:cide_winid_code))
+    if (0 == s:Win_GotoId(s:cide_winid_code))
         :top new
-        let s:cide_winid_code = win_getid()
+        let s:cide_winid_code = s:Win_GetId()
     endif
 
     let tmpbuf = bufnr('^'.fname0.'$')
@@ -570,9 +600,9 @@ function! s:OpenViewFile(fname, lineno, basedir)
         silent! exec 'edit ' . fname0
         "exec 'edit ' . fname0
         "
-        " if (0 == win_gotoid(s:cide_winid_code))
+        " if (0 == s:Win_GotoId(s:cide_winid_code))
         "     :top new
-        "     let s:cide_winid_code = win_getid()
+        "     let s:cide_winid_code = s:Win_GetId()
         " endif
 
         let tmpname = bufname("%")
@@ -605,7 +635,7 @@ function! s:CB_ViewCurrentQueryResultItem()
     endif
     let s:QueryCurIdx{s:cide_cur_sel_query} = idx-1
     " find the window and select it
-    let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYRES)
+    let reswin = s:Win_GotoName(s:CIDE_WIN_TITLE_QUERYRES)
     if (reswin == -1) 
         return
     endif
@@ -652,7 +682,7 @@ function! s:CreateWindow(cmd, bufname)
     set noequalalways 
     let cmdstr =  a:cmd." ".a:bufname
     exec cmdstr
-    call s:GotoWindowByName(a:bufname)
+    call s:Win_GotoName(a:bufname)
     silent! setlocal colorcolumn=0
     setlocal modifiable
 endfunction
@@ -661,7 +691,7 @@ function! s:CreateWindowEx(cmd, bufname, str, hascursorline)
     set noequalalways 
     let cmdstr =  a:cmd." ".a:bufname
     exec cmdstr
-    call s:GotoWindowByName(a:bufname)
+    call s:Win_GotoName(a:bufname)
     setlocal modifiable
     if (len(a:str) > 0)
         call append(0, a:str)
@@ -683,7 +713,9 @@ function! s:CreateWindowEx(cmd, bufname, str, hascursorline)
         let w:mark_CursorLineDisable = 1
         silent! setlocal nocursorline
     endif
-    return win_getid()
+
+    return s:Win_GetId()
+
 endfunction
 
 function! s:SetQueryResultWinSyntax()
@@ -815,10 +847,10 @@ endfunction
 
 " Make sure both QueryList and QueryResult windows are opened
 function! s:OpenQueryListQueryResult()
-    let winNumQL = s:FindWindow(s:CIDE_WIN_TITLE_QUERYLIST)
+    let winNumQL = s:Win_FindName(s:CIDE_WIN_TITLE_QUERYLIST)
     if winNumQL == -1
         "query list was not open
-        let winNumQR = s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYRES)
+        let winNumQR = s:Win_GotoName(s:CIDE_WIN_TITLE_QUERYRES)
         if (winNumQR == -1)
             call s:InitQueryResultWin()
         endif
@@ -826,11 +858,11 @@ function! s:OpenQueryListQueryResult()
         call s:InitQueryListWin()
     else
         "query list is open
-        let winNumQR = s:FindWindow(s:CIDE_WIN_TITLE_QUERYRES)
+        let winNumQR = s:Win_FindName(s:CIDE_WIN_TITLE_QUERYRES)
         if winNumQR == -1
             "query list is open, but no query result
             "close the QueryList window
-            call s:CloseWindow(winNumQL)
+            call s:Win_CloseWnum(winNumQL)
             "open the query result
             call s:InitQueryResultWin()
             "reopen the query list
@@ -839,7 +871,7 @@ function! s:OpenQueryListQueryResult()
             "both window are open
         endif
     endif
-    call s:GotoWindowByName(s:CIDE_WIN_TITLE_QUERYLIST)
+    call s:Win_GotoName(s:CIDE_WIN_TITLE_QUERYLIST)
     setlocal noswapfile
     setlocal buftype=nofile
     setlocal bufhidden=delete
@@ -848,13 +880,13 @@ function! s:OpenQueryListQueryResult()
 endfunction
 
 function! s:CideClose()
-    call s:CloseWindowByName(s:CIDE_WIN_TITLE_QUERYLIST)
-    call s:CloseWindowByName(s:CIDE_WIN_TITLE_QUERYRES)
+    call s:Win_CloseName(s:CIDE_WIN_TITLE_QUERYLIST)
+    call s:Win_CloseName(s:CIDE_WIN_TITLE_QUERYRES)
 endfunction
 
 function! s:CideToggle()
-    let winNumQL = s:FindWindow(s:CIDE_WIN_TITLE_QUERYLIST)
-    let winNumQR = s:FindWindow(s:CIDE_WIN_TITLE_QUERYRES)
+    let winNumQL = s:Win_FindName(s:CIDE_WIN_TITLE_QUERYLIST)
+    let winNumQR = s:Win_FindName(s:CIDE_WIN_TITLE_QUERYRES)
     if ((winNumQL != -1) || (winNumQR != -1))
         call s:CideClose()
         return
@@ -1553,31 +1585,31 @@ endfunction
 
 function! s:GotoCodeTreeWinNo(iType)
     if (a:iType == 0)
-        let winNumCT = s:FindWindow(s:CIDE_WIN_TITLE_CALLEETREE)
+        let winNumCT = s:Win_FindName(s:CIDE_WIN_TITLE_CALLEETREE)
     else
-        let winNumCT = s:FindWindow(s:CIDE_WIN_TITLE_CALLERTREE)
+        let winNumCT = s:Win_FindName(s:CIDE_WIN_TITLE_CALLERTREE)
     endif
-    call s:GotoWindow(winNumCT)
+    call s:Win_GotoWnum(winNumCT)
 endfunction
 
 "make sure the QueryWindow is not opened alone
 function! s:OpenCodeTree(iType)
-    let winNumCTe = s:FindWindow(s:CIDE_WIN_TITLE_CALLEETREE)
-    let winNumCTr = s:FindWindow(s:CIDE_WIN_TITLE_CALLERTREE)
+    let winNumCTe = s:Win_FindName(s:CIDE_WIN_TITLE_CALLEETREE)
+    let winNumCTr = s:Win_FindName(s:CIDE_WIN_TITLE_CALLERTREE)
     let bNew = 1
     if (winNumCTe>0)
         if (winNumCTr>0)
             let bNew = 0
         else
-            call s:CloseWindow(winNumCTe)
+            call s:Win_CloseWnum(winNumCTe)
         endif
     else
         if (winNumCTr>0)
-            call s:CloseWindow(winNumCTr)
+            call s:Win_CloseWnum(winNumCTr)
         endif
     endif
     if (bNew == 1)
-        if (0 == win_gotoid(s:cide_winid_code))
+        if (0 == s:Win_GotoId(s:cide_winid_code))
             call s:MsgError("ACS window not found!")
         endif
 
@@ -2126,7 +2158,7 @@ function! s:GrepOptionWinOnClick()
 endfunction
 
 function! s:InitGrepOptions()
-    let winNum = s:FindWindow(s:CIDE_WIN_TITLE_GREPOPTIONS)
+    let winNum = s:Win_FindName(s:CIDE_WIN_TITLE_GREPOPTIONS)
     if (winNum == -1)
         set noequalalways 
         let str = s:GetOptionStr()
@@ -2160,19 +2192,18 @@ function! s:InitGrepOptions()
 
             let i = 0
             while i < len(s:option_list)
-
                 let opname = s:option_list[i][0]
-                let keypos = s:option_list[i][1]
+                let keypos = str2nr(s:option_list[i][1])
                 exec 'nnoremap <buffer> <silent> ' . opname[keypos - 1] . ' :call <SID>GrepOptionToggle(' . i . ')<CR>'
 
                 " nnoremap <buffer> <silent> s :call <SID>GrepOptionToggleCase()<CR>
                 if (keypos >= 2)
-                    let part1  = opname[0:keypos-2]
+                    let part1  = strpart(opname, 0, keypos-1)
                 else
                     let part1  = ''
                 end
                 if (keypos < len(opname))
-                    let part2  = opname[keypos:]
+                    let part2  = strpart(opname, keypos)
                 else
                     let part2  = ''
                 end
@@ -2189,7 +2220,7 @@ function! s:InitGrepOptions()
         endif
         " exec "normal 55|"
     else
-        let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_GREPOPTIONS)
+        let reswin = s:Win_GotoName(s:CIDE_WIN_TITLE_GREPOPTIONS)
         echom "Activating existing option window"
         exe 1
         resize 1
@@ -2282,10 +2313,10 @@ function! s:RunGrepLast()
 endfunction
 
 function! s:FindWinPreview(fname, key)
-    if (0 == win_gotoid(s:cide_winid_preview))
+    if (0 == s:Win_GotoId(s:cide_winid_preview))
         " cannot find id
         let s:cide_winid_preview = s:CreateWindowEx('rightbelow vnew', s:CIDE_WIN_TITLE_PREVIEW, "", 0)
-        if (0 == win_gotoid(s:cide_winid_preview))
+        if (0 == s:Win_GotoId(s:cide_winid_preview))
             call s:MsgError("failed to create " . s:CIDE_WIN_TITLE_PREVIEW)
             return
         endif
@@ -2300,7 +2331,7 @@ function! s:FindWinPreview(fname, key)
     setlocal nobuflisted
 
     " Back to FindWin
-    if (0 == win_gotoid(s:cide_winid_findwin))
+    if (0 == s:Win_GotoId(s:cide_winid_findwin))
         call s:MsgError("failed to goto findwin")
     endif
 
@@ -2350,7 +2381,7 @@ function! s:CB_FindWinViewCurrentItem(key)
     elseif (a:key == 'e' || a:key == 'E')
         call s:OpenViewFile(fname_rel, 1, s:find_opt_dir) 
         " Back to findwin
-        call win_gotoid(s:cide_winid_findwin)
+        call s:Win_GotoId(s:cide_winid_findwin)
     elseif (a:key == 'g')
         if s:IsWinXX()
             exec 'silent! !start gvim '.fname_quotes
@@ -2497,7 +2528,7 @@ function! s:RunFindSub()
     " --- call s:OpenQueryListQueryResult()
     " let nLines = s:PopulateQueryResult(a:idx)
 
-    if (0 == win_gotoid(s:cide_winid_findwin))
+    if (0 == s:Win_GotoId(s:cide_winid_findwin))
         let s:cide_winid_findwin = s:CreateWindowEx('botright 10new', s:CIDE_WIN_TITLE_FINDFILE, "", 1)
         if (s:cide_winid_findwin < 0)
             return
@@ -2586,11 +2617,11 @@ function! s:RunFind()
 endfunction
 
 function! s:CB_ShellCommanderOpenWin()
-    let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_SHELL_OUT)
+    let reswin = s:Win_GotoName(s:CIDE_WIN_TITLE_SHELL_OUT)
     if (reswin == -1) 
         let ww = winwidth(0) * 80/100
         call s:CreateWindow('bo '.ww.'vnew', s:CIDE_WIN_TITLE_SHELL_OUT)
-        let reswin = s:GotoWindowByName(s:CIDE_WIN_TITLE_SHELL_OUT)
+        let reswin = s:Win_GotoName(s:CIDE_WIN_TITLE_SHELL_OUT)
         if (reswin == -1) 
             return
         end
