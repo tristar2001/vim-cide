@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.9
-" Last Modified:    3/3/2020
+" Version:          0.10
+" Last Modified:    4/12/2020
 "
 " MIT License
 " 
@@ -36,7 +36,13 @@ function! s:MsgInfo(msg)
 endfunction
 
 function! s:MsgError(msg)
-    call confirm('[C-IDE-ERROR] '.a:msg.' ')
+    if has('gui_running')
+        call confirm('[C-IDE-ERROR] '.a:msg.' ')
+    else
+        echohl ErrorMsg
+        echom '[C-IDE-ERROR] '.a:msg.' '
+        echohl None
+    end
 endfunction
 
 function! s:InitVarGlobal(var_name, var_default)
@@ -1928,6 +1934,7 @@ function! s:GetDef()
 endfunction
 
 function! s:RunGrepSub()
+    let s:cscope_cmd_out = ""
     " call s:MsgInfo(expand('<sfile>'))
     " call s:MsgInfo(substitute(expand('<sfile>'), '.*\(\.\.\|\s\)', '', ''))
 
@@ -2006,6 +2013,7 @@ function! s:RunGrepSubSub(grep_files)
         let cmd = cmd . " ".s:grep_repby
     endif
 
+    let s:cscope_cmd_out = ''
     let oldpath = s:ChangeDirectory(s:grep_opt_dir) " save original directory
     let s:cscope_cmd_out = system(cmd)
     call s:ChangeDirectory(oldpath) " restore original directory
@@ -2095,7 +2103,7 @@ function! s:AfterQuery(pat, cmdname)
 endfunction
 
 function! s:DoGrep()
-    silent call s:RunGrepSub()
+    call s:RunGrepSub()
     " call s:SaveOptions()
     if s:cscope_cmd_out == ""
         return
@@ -2256,6 +2264,12 @@ function! s:CideSaveOptions()
         call s:SaveStrToFile(outstr, s:CIDE_CFG_FNAME)
         call s:ChangeDirectory(oldpath) " restore original directory
     endif
+endfunction
+
+function! s:CideSetMainWin()
+    let curid = s:Win_GetId()
+    let s:cide_winid_code = curid
+    redraw
 endfunction
 
 function! FileTypeCompletionGrep(ArgLead, CmdLine, CursorPos)
@@ -2671,6 +2685,17 @@ function! s:MyMake(makecmd)
     cope
 endfunction
 
+function! Cide_status_b()
+    let curid = s:Win_GetId()
+    if (curid == s:cide_winid_code)
+        return '[MAIN]'
+    else
+        return ''
+    end
+endfunction
+
+let g:airline_section_b = '%{Cide_status_b()}'
+
 " Define set of make commands
 command! -nargs=* Imake                     call <SID>MyMake("")
 command! -nargs=* Imakeclean                call <SID>MyMake("clean")
@@ -2694,6 +2719,7 @@ command! -nargs=* Appendhist                call <SID>LoadHist(1)
 command! -nargs=* Savehist                  call <SID>SaveHist()
 command! -nargs=* CideToggle                call <SID>CideToggle()
 command! -nargs=* CideSaveOptions           call <SID>CideSaveOptions()
+command! -nargs=* CideSetMainWin            call <SID>CideSetMainWin()
 command! -nargs=* Icalleetree               call <SID>NewSymbol(0)
 command! -nargs=* Icallertree               call <SID>NewSymbol(1)
 command! -nargs=* GetDef                    call <SID>GetDef()
@@ -2737,6 +2763,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CideHistory.&Save<TAB>s   :Savehist<CR>
 :menu <silent> &CIDE.CideToggle             :CideToggle<CR>
 :menu <silent> &CIDE.CideSaveOption         :CideSaveOptions<CR>
+:menu <silent> &CIDE.CideSetMainWin         :CideSetMainWin<CR>
 :menu <silent> &CIDE.CscopeRebuild          :CscopeRebuild<CR>
 :menu <silent> &CIDE.CscopeCase             :CscopeCase<CR>
 :menu <silent> &CIDE.Save+Backup            :SaveBackup<CR>
@@ -2752,8 +2779,8 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteSubtree        :DeleteSubtree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
-:menu <silent> &CIDE.-SepVersion-          :
-:menu <silent> &CIDE.version\ 0\.8          :
+:menu <silent> &CIDE.-SepVersion-           :
+:menu <silent> &CIDE.version\ 0\.10         :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
