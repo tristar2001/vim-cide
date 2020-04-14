@@ -793,7 +793,7 @@ endfunction
 
 " Initializes the query list window
 function! s:InitQueryListWin()
-    call s:CreateWindowEx('15vnew', s:CIDE_WIN_TITLE_QUERYLIST, "", 0)
+    call s:CreateWindowEx('topleft 15vnew', s:CIDE_WIN_TITLE_QUERYLIST, "", 0)
     nnoremap <buffer> <silent> <CR>             :call <SID>CB_SelectQuery()<CR>
     nnoremap <buffer> <silent> d                :call <SID>CB_DeleteQuery(0)<CR>
     nnoremap <buffer> <silent> u                :call <SID>CB_UpdateQuery()<CR>
