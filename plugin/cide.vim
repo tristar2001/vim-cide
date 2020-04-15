@@ -190,7 +190,7 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_findwin_cols_size', 12)
     call s:InitVarGlobal('cide_findwin_cols_name', 20)
     if (s:cide_shell_grep == 'rg')
-        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-tcpp", "-tc", "-tmatlab", "-tpy", "-tmd", "-tvim", '-g "*"'])
+        call s:InitVarGlobal('cide_grep_filespecs', ["-tcxx", "-trust", "-tcr", "-tmatlab", "-tpy", "-tmd", "-tvim", '-g "*"'])
 
         if s:IsWinXX_NonNative()
             let path_sep = "//"
@@ -198,7 +198,7 @@ function! s:InitVars()
             let path_sep = "/"
         endif
 
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --type-add "cr:include:cxx,rust" --sort path')
     else
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
