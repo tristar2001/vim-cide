@@ -1,5 +1,5 @@
 " Description:      C-IDE vim plugin
-" Version:          0.10
+" Version:          0.11
 " Last Modified:    4/12/2020
 "
 " MIT License
@@ -259,7 +259,6 @@ function! s:InitVars()
     let s:cide_winid_code               = s:Win_GetId()
     let s:cide_winid_findwin            = -1
 
-    let s:cide_winid_gen                = 2000
 endfunction
 
 " Initialize global variables
@@ -2780,7 +2779,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.version\ 0\.10         :
+:menu <silent> &CIDE.version\ 0\.11         :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
