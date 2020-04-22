@@ -130,13 +130,18 @@ function! s:Win_GotoWnum(wnum)
     exec a:wnum . "wincmd w"
 endfunction
 
-function! s:Win_GetId()
+function! s:Win_GenId()
     if !exists('s:cide_winid_gen')
         let s:cide_winid_gen = 2000
     end
+    let s:cide_winid_gen = s:cide_winid_gen + 1
+    let w:cide_id = s:cide_winid_gen
+    return w:cide_id
+endfunction
+
+function! s:Win_GetId()
     if strlen(getwinvar(0, 'cide_id')) == 0
-        let s:cide_winid_gen = s:cide_winid_gen + 1
-        let w:cide_id = s:cide_winid_gen
+        let w:cide_id = Win_GenId()
     end
     return w:cide_id
 endfunction
@@ -256,7 +261,7 @@ function! s:InitVars()
     let s:cide_flag_unique_names        = 1
 
     " Mark code window
-    let s:cide_winid_code               = s:Win_GetId()
+    let s:cide_winid_code               = s:Win_GenId()
     let s:cide_winid_findwin            = -1
 
 endfunction
@@ -573,7 +578,7 @@ function! s:OpenViewFile(fname, lineno, basedir)
 
     if (0 == s:Win_GotoId(s:cide_winid_code))
         :top new
-        let s:cide_winid_code = s:Win_GetId()
+        let s:cide_winid_code = s:Win_GenId()
     endif
 
     let tmpbuf = bufnr('^'.fname0.'$')
@@ -719,7 +724,7 @@ function! s:CreateWindowEx(cmd, bufname, str, hascursorline)
         silent! setlocal nocursorline
     endif
 
-    return s:Win_GetId()
+    return s:Win_GenId()
 
 endfunction
 
