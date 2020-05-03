@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.11
-" Last Modified:    4/12/2020
+" Version:          0.12
+" Last Modified:    05/02/2020
 "
 " MIT License
 " 
@@ -141,7 +141,7 @@ endfunction
 
 function! s:Win_GetId()
     if strlen(getwinvar(0, 'cide_id')) == 0
-        let w:cide_id = Win_GenId()
+        let w:cide_id = s:Win_GenId()
     end
     return w:cide_id
 endfunction
@@ -2784,7 +2784,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.version\ 0\.11         :
+:menu <silent> &CIDE.VER\ 0\.12\ (05/02/20) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
