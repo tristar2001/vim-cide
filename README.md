@@ -1,3 +1,23 @@
+# Table of Content
+
+<!-- vim-markdown-toc GFM -->
+
+* [Description](#description)
+* [Features](#features)
+* [Highlights](#highlights)
+* [Example work flow](#example-work-flow)
+* [Default Keymaps](#default-keymaps)
+    * [Global hotkeys](#global-hotkeys)
+    * [Hotkeys in the "Find Window"](#hotkeys-in-the-find-window)
+* [Installation](#installation)
+    * [Dependencies](#dependencies)
+    * [Manual installation](#manual-installation)
+    * [Vundle installation](#vundle-installation)
+* [Configuration](#configuration)
+* [Screenshots](#screenshots)
+
+<!-- vim-markdown-toc -->
+
 # Description
 
 Powerful searching and navigation plugin that makes VIM an IDE based on
