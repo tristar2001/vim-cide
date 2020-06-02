@@ -352,44 +352,59 @@ function! s:MyTest2()
 endfunction
 
 function! s:RebuildCscopeSub()
+    let cscope_files0 = "cscope.files"
     let curpath0 = expand("%:p:h")
     let curpath0 = input("Build cscope.out under: ", curpath0)
-    if curpath0 == ""
-        echohl WarningMsg | echomsg "Build was canceled"  | echohl None
-        let s:cide_cur_cscope_out_dir = ""
-        call s:MsgInfo("Build was canceled")
-        return 0
-    endif
 
-    " Change current directory
-    let oldpath = s:ChangeDirectory(curpath0)
+    if (curpath0 != "")
+        let cscope_files0 = input("Build cscope file list: ", cscope_files0)
 
-    let cscope_files0 = "cscope.files"
-    let cscope_files0 = input("Build from cscope file list: ", cscope_files0)
-    let cscope_files = curpath0 . "/" . cscope_files0
+        if (cscope_files0 != "")
+            " Change current directory
+            let oldpath = s:ChangeDirectory(curpath0)
 
-    let regen_cscope_files = 1
-    if filereadable(cscope_files)
-        let msg = '"'. cscope_files. '" already exists; do you want to regenerate?'
-        if (confirm(msg, "Yes\nNo") != 1)
-            let regen_cscope_files = 0
+            let cscope_files = curpath0 . "/" . cscope_files0
+
+            let regen_cscope_files = 1
+            if filereadable(cscope_files)
+                let msg = '"'. cscope_files. '" already exists; do you want to regenerate?'
+                if (confirm(msg, "Yes\nNo") != 1)
+                    let regen_cscope_files = 0
+                endif
+            endif
+
+            let regen_canceled = 0
+            if (regen_cscope_files == 1)
+                let find_args = join(readfile(curpath0 . '/cscope.find_args'), " ")
+                let find_cmd = '"'.s:cide_shell_find . '" . ' . find_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
+                let find_cmd = input("Generate " . cscope_files0 . ': ' , find_cmd)
+                if (find_cmd != "")
+                    let find_cmd_out = system(find_cmd)
+                    call s:SaveStrToFile(find_cmd_out, cscope_files) 
+                else
+                    let regen_canceled = 1
+                endif
+            endif
+
+            if (regen_canceled == 0)
+                let cscope_cmd_out = system(s:cide_shell_cscope. ' -i '. cscope_files0 . ' -b -R -u')
+            endif
+
+            " Restore current directory
+            call s:ChangeDirectory(oldpath)
+            let s:cide_cur_cscope_out_dir = curpath0
+
+            if (regen_canceled == 0)
+                return 1
+            endif
         endif
     endif
 
-    if (regen_cscope_files == 1)
-        let find_args = join(readfile(curpath0 . '/cscope.find_args'), " ")
-        let cmd = '"'.s:cide_shell_find . '" . ' . find_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
-        let cmd = input("Generating " . cscope_files . ': ' , cmd)
-        let cmd_out = system(cmd)
-        call s:SaveStrToFile(cmd_out, cscope_files) 
-    endif
+    echohl WarningMsg | echomsg "Build was canceled"  | echohl None
+    let s:cide_cur_cscope_out_dir = ""
+    call s:MsgInfo("Build was canceled")
+    return 0
 
-    let cmd_out = system(s:cide_shell_cscope. ' -i '. cscope_files0 . ' -b -R -u')
-
-    " Restore current directory
-    call s:ChangeDirectory(oldpath)
-    let s:cide_cur_cscope_out_dir = curpath0
-    return 1
 endfunction
 
 function! s:FindFileInParentFolders(fname)
