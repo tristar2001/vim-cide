@@ -1,0 +1,4 @@
+-path "./arc/kernel" -prune -o
+-path "./arc/mm/*" -prune -o
+-path "./*ten*/*" -prune -o
+

@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.12
-" Last Modified:    05/02/2020
+" Version:          0.20
+" Last Modified:    06/01/2020
 "
 " MIT License
 " 
@@ -355,18 +355,38 @@ function! s:RebuildCscopeSub()
     let curpath0 = expand("%:p:h")
     let curpath0 = input("Build cscope.out under: ", curpath0)
     if curpath0 == ""
-        echohl WarningMsg | echomsg "Build canceled"  | echohl None
+        echohl WarningMsg | echomsg "Build was canceled"  | echohl None
         let s:cide_cur_cscope_out_dir = ""
-        call s:MsgInfo("CheckCscopeConnection(): build was canceled")
+        call s:MsgInfo("Build was canceled")
         return 0
     endif
+
+    " Change current directory
     let oldpath = s:ChangeDirectory(curpath0)
-    let cscope_files = curpath0 . "/cscope.files"
-    let cmd = '"'.s:cide_shell_find . "\" . -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\""
-    let cmd = input("Generating " . cscope_files . ': ' , cmd)
-    let cmd_out = system(cmd)
-    call s:SaveStrToFile(cmd_out, cscope_files) 
-    let cmd_out = system(s:cide_shell_cscope. " -b -R -u")
+
+    let cscope_files0 = "cscope.files"
+    let cscope_files0 = input("Build from cscope file list: ", cscope_files0)
+    let cscope_files = curpath0 . "/" . cscope_files0
+
+    let regen_cscope_files = 1
+    if filereadable(cscope_files)
+        let msg = '"'. cscope_files. '" already exists; do you want to regenerate?'
+        if (confirm(msg, "Yes\nNo") != 1)
+            let regen_cscope_files = 0
+        endif
+    endif
+
+    if (regen_cscope_files == 1)
+        let find_args = join(readfile(curpath0 . '/cscope.find_args'), " ")
+        let cmd = '"'.s:cide_shell_find . '" . ' . find_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
+        let cmd = input("Generating " . cscope_files . ': ' , cmd)
+        let cmd_out = system(cmd)
+        call s:SaveStrToFile(cmd_out, cscope_files) 
+    endif
+
+    let cmd_out = system(s:cide_shell_cscope. ' -i '. cscope_files0 . ' -b -R -u')
+
+    " Restore current directory
     call s:ChangeDirectory(oldpath)
     let s:cide_cur_cscope_out_dir = curpath0
     return 1
@@ -2784,7 +2804,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.VER\ 0\.12\ (05/02/20) :
+:menu <silent> &CIDE.VER\ 0\.20\ (06/01/20) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
