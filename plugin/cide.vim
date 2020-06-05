@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
 " Version:          0.20
-" Last Modified:    06/01/2020
+" Last Modified:    06/05/2020
 "
 " MIT License
 " 
@@ -375,7 +375,12 @@ function! s:RebuildCscopeSub()
 
             let regen_canceled = 0
             if (regen_cscope_files == 1)
-                let find_args = join(readfile(curpath0 . '/cscope.find_args'), " ")
+                let arg_file = curpath0 . '/cscope.find_args'
+                if filereadable(arg_file)
+                    let find_args = join(readfile(arg_file), " ")
+                else
+                    let find_args = ""
+                endif
                 let find_cmd = '"'.s:cide_shell_find . '" . ' . find_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
                 let find_cmd = input("Generate " . cscope_files0 . ': ' , find_cmd)
                 if (find_cmd != "")
