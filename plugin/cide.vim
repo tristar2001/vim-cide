@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.20
-" Last Modified:    06/05/2020
+" Version:          0.21
+" Last Modified:    06/06/2020
 "
 " MIT License
 " 
@@ -31,16 +31,54 @@ endif
 let g:cide_loaded = 1
 set shellslash
 
-function! s:MsgInfo(msg)
-    call confirm('[C-IDE-INFO] '.a:msg.' ')
+function! s:ConConfirm(msg, ...)
+    let extra_arg = get(a:, 1, '')
+    let saveopt=&guioptions
+    " console mode confirm()
+    set guioptions+=c
+    if extra_arg == ''
+        let ret = confirm(a:msg)
+    else
+        let ret = confirm(a:msg, extra_arg)
+    end
+    let &guioptions=saveopt
+    return ret
 endfunction
 
-function! s:MsgError(msg)
-    if has('gui_running')
+function! s:MsgPrompt(msg, ...)
+    let nogui = get(a:, 1, 1)
+    echom a:msg
+endfunction
+
+function! s:MsgInfo(msg, ...)
+    let nogui = get(a:, 1, 1)
+    if has('gui_running') && nogui == 0
+        call confirm('[C-IDE-INFO] '.a:msg.' ')
+    else
+        echohl statement
+        echom '[C-IDE-INFO] '.a:msg.' '
+        echohl None
+    end
+endfunction
+
+function! s:MsgError(msg, ...)
+    let nogui = get(a:, 1, 1)
+    if has('gui_running') && nogui == 0
         call confirm('[C-IDE-ERROR] '.a:msg.' ')
     else
         echohl ErrorMsg
         echom '[C-IDE-ERROR] '.a:msg.' '
+        echohl None
+    end
+endfunction
+
+function! s:MsgWarning(msg, ...)
+    let nogui = get(a:, 1, 1)
+    if has('gui_running') && nogui == 0
+        call confirm(' '.a:msg.' ')
+    else
+        echohl WarningMsg
+        echom ' '.a:msg.' '
         echohl None
     end
 endfunction
@@ -357,7 +395,7 @@ function! s:RebuildCscopeSub()
     let curpath0 = input("Build cscope.out under: ", curpath0)
 
     if (curpath0 != "")
-        let cscope_files0 = input("Build cscope file list: ", cscope_files0)
+        let cscope_files0 = input("cscope file list: ", cscope_files0)
 
         if (cscope_files0 != "")
             " Change current directory
@@ -367,8 +405,7 @@ function! s:RebuildCscopeSub()
 
             let regen_cscope_files = 1
             if filereadable(cscope_files)
-                let msg = '"'. cscope_files. '" already exists; do you want to regenerate?'
-                if (confirm(msg, "Yes\nNo") != 1)
+                if s:ConConfirm('"'. cscope_files. '" already exists; do you want to regenerate it?', "Yes\nNo") != 1
                     let regen_cscope_files = 0
                 endif
             endif
@@ -386,13 +423,17 @@ function! s:RebuildCscopeSub()
                 if (find_cmd != "")
                     let find_cmd_out = system(find_cmd)
                     call s:SaveStrToFile(find_cmd_out, cscope_files) 
+                    call s:MsgInfo('"'. cscope_files. '" is successfully generated.')
                 else
                     let regen_canceled = 1
                 endif
+            else
+                call s:MsgInfo('The original "'. cscope_files. '" is used.')
             endif
 
             if (regen_canceled == 0)
                 let cscope_cmd_out = system(s:cide_shell_cscope. ' -i '. cscope_files0 . ' -b -R -u')
+                call s:MsgInfo('"'. curpath0 . '/cscope.out'. '" is successfully generated.')
             endif
 
             " Restore current directory
@@ -405,9 +446,8 @@ function! s:RebuildCscopeSub()
         endif
     endif
 
-    echohl WarningMsg | echomsg "Build was canceled"  | echohl None
+    call s:MsgWarning("Build was canceled")
     let s:cide_cur_cscope_out_dir = ""
-    call s:MsgInfo("Build was canceled")
     return 0
 
 endfunction
@@ -429,7 +469,7 @@ function! s:CheckCscopeConnection()
     endif
     let curpath = s:FindFileInParentFolders(s:CSCOPE_OUT_FNAME)
     if strlen(curpath) <= 3
-        echohl WarningMsg | echomsg "Error: ".s:CSCOPE_OUT_FNAME." does not exist."  | echohl None
+        call s:MsgError(s:CSCOPE_OUT_FNAME." does not exist.")
         return s:RebuildCscopeSub()
     else
         let s:cide_cur_cscope_out_dir = curpath
@@ -512,10 +552,7 @@ function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
     let tstr0 = substitute("\n".@z, "\\n\\(\\S\\+\\)\\s\\+\\(\\S\\+\\)\\s\\+\\(\\d\\+\\)\\s\\+","\\n\\1 \\3 \\2 ","g")
     let s:cscope_cmd_out = strpart(tstr0,1) 
     if (strlen(s:cscope_cmd_out) < 3)
-        echohl WarningMsg | 
-                    \ echomsg "Error: Pattern " . pattern . " not found" | 
-                    \ echohl None
-        call s:MsgError("GetCscopeResult() processing failed")
+        call s:MsgError("Pattern " . pattern . " was not found")
         return 0
     endif
     return 1
@@ -624,10 +661,9 @@ function! s:OpenViewFile(fname, lineno, basedir)
     let tmpbuf = bufnr('^'.fname0.'$')
     if (tmpbuf>0) "exists
         exec "b! ".tmpbuf
-        "      echo "want ".fname0."(bufnr=".tmpbuf." now".bufname("%")
         if (&modified)
             let prtmsg = "File ".fname0." has been modified.\nDo you want to save it?"
-            let retcode = confirm(prtmsg, "Leave Alone\nDiscard Change\nSave Change")
+            let retcode = s:ConConfirm(prtmsg, "Leave Alone\nDiscard Change\nSave Change")
             if (retcode==1)
                 silent! exec a:lineno
             elseif (retcode==2)
@@ -643,7 +679,6 @@ function! s:OpenViewFile(fname, lineno, basedir)
         endif
     else
         let savebuf    = bufnr("%")
-        "      echo "curbufname=".bufname("%")
         let savehidden = getbufvar(savebuf, "&bufhidden")
         call setbufvar(savebuf, "&bufhidden", "hide")
 
@@ -661,7 +696,7 @@ function! s:OpenViewFile(fname, lineno, basedir)
         if(tmpname==fname)
             silent! exec a:lineno
         else
-            echo "edit failed: we want:".fname." now:".bufname("%")
+            call s:MsgError("edit failed: we want:".fname." now:".bufname("%"))
         endif
         call setbufvar(savebuf, "&bufhidden", savehidden)
     endif
@@ -1070,7 +1105,7 @@ function! s:CB_UpdateQuery()
     if (curlineno> s:cide_cur_query_count)
         return
     endif
-    call s:MsgInfo(s:QueryCommand{curlineno})
+    " call s:MsgInfo(s:QueryCommand{curlineno})
     return
     " TBD we can potentially restore last deleted item
     let ii = curlineno + 1
@@ -1228,7 +1263,6 @@ function! <SID>SaveHist()
 endfunction
 
 function! s:CscopeCase()
-    " echo "cur=" . a:cur
     if s:cide_flag_cscope_case == 1
         let s:cide_flag_cscope_case =  0
         unmenu &CIDE.CscopeCase
@@ -1241,7 +1275,6 @@ function! s:CscopeCase()
 endfunction
 
 function! s:UniqueNames()
-    " echo "cur=" . a:cur
     if s:cide_flag_unique_names == 1
         let s:cide_flag_unique_names =  0
         unmenu CodeTree.UniqueName
@@ -1373,7 +1406,7 @@ function! s:DeleteBlank(iType, id)
     let idparent = s:Node_{a:iType}_{a:id}_idParent
     let idx = s:GetIdx(a:iType, a:id)
     if (idx < 0) 
-        echo "invalid id in DeleteBlank()"
+        call s:MsgError("invalid id in DeleteBlank()")
         return
     endif
     let i = idx
@@ -1422,7 +1455,7 @@ function! s:DeleteAllSub(iType, id, bDeleteSelf)
 endfunction
 
 function! s:DeleteAll(bDeleteSelf)
-    let ret0 = confirm("Are you sure want to delete it?","Yes\nNo")
+    let ret0 = s:ConConfirm("Are you sure want to delete it?","Yes\nNo")
     if(ret0 != 1)
         return
     endif
@@ -1542,7 +1575,7 @@ function! s:MoveDULR(bDir)
 
     let curidx = s:GetIdx(iType, curid)
     if (curidx <= 0) 
-        echo "invalid id in MoveDULR()"
+        call s:MsgError("invalid id in MoveDULR()")
         return
     endif
 
@@ -2162,7 +2195,7 @@ function! s:DoGrepFromOptionWin()
 endfunction
 
 function! s:GrepOptionWinTab()
-    echo "tab" 
+    " echo "tab" 
     " redraw
     " call s:DoGrep()
 endfunction
@@ -2824,7 +2857,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.VER\ 0\.20\ (06/01/20) :
+:menu <silent> &CIDE.VER\ 0\.21\ (06/06/20) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
