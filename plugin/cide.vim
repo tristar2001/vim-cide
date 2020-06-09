@@ -281,6 +281,7 @@ function! s:InitVars()
     let s:grep_opt_hidden               = 0
     let s:grep_opt_regex                = 0
     let s:grep_opt_files                = s:cide_grep_filespecs[0]
+    let s:grep_opt_exclude              = ''
 
     " Load default find options
     let s:find_opt_dir                  = getcwd()
@@ -2060,28 +2061,6 @@ function! s:RunGrepSubSub(grep_files)
             "
         endif
 
-        let arg_file = s:grep_opt_dir . '/' . s:cide_exclude_fname
-
-        if filereadable(arg_file)
-            let excl_args = ' '
-
-            for line in readfile(arg_file, '')
-                let line_len = strlen(line)
-                if (line_len > 0)
-                    if (line_len >=2 && line[0] == '.' && line[1] =='/')
-                        let line = line[2:]
-                    endif
-                    let excl_args = excl_args . '-g "!' . line . '" '
-                end
-            endfor
-
-            let excl_args = input("Exclude files/folders: ", excl_args)
-            if strlen(excl_args) > 0
-                let grep_opt = grep_opt . excl_args
-            endif
-        endif
-
-
     elseif (s:cide_shell_grep == 'ag')
         if (s:grep_opt_whole == 1)
             let grep_opt = grep_opt." --word-regexp"    " -w
@@ -2116,7 +2095,7 @@ function! s:RunGrepSubSub(grep_files)
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.filespec.' '.pattern
+    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.s:grep_opt_exclude.' '.filespec.' '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
@@ -2410,6 +2389,30 @@ function! s:RunGrep()
         return
     end
     let s:grep_opt_dir = grep_dir0
+
+    let arg_file = s:grep_opt_dir . '/' . s:cide_exclude_fname
+
+    if filereadable(arg_file)
+        let excl_args = ' '
+
+        if (s:cide_shell_grep == 'rg')
+
+            for line in readfile(arg_file, '')
+                let line_len = strlen(line)
+                if (line_len > 0)
+                    if (line_len >=2 && line[0] == '.' && line[1] =='/')
+                        let line = line[2:]
+                    endif
+                    let excl_args = excl_args . '-g "!' . line . '" '
+                end
+            endfor
+
+            let s:grep_opt_exclude = input("Exclude files/folders: ", excl_args)
+        endif
+    endif
+
+
+
     let s:grep_repby = ""
 
     let grep_options = input("Global options: ", s:cide_grep_options)
