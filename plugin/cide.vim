@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.21
-" Last Modified:    06/06/2020
+" Version:          0.22
+" Last Modified:    06/09/2020
 "
 " MIT License
 " 
@@ -249,6 +249,7 @@ function! s:InitVars()
 
     call s:InitVarGlobal('cide_find_filespecs', ['-type f -name "*"', '-name "*"'])
     call s:InitVarGlobal('cide_find_options', '-maxdepth 999')
+    call s:InitVarGlobal('cide_exclude_fname','exclude.list')
 
     let s:cpo_save = &cpo
     set cpo&vim
@@ -412,13 +413,21 @@ function! s:RebuildCscopeSub()
 
             let regen_canceled = 0
             if (regen_cscope_files == 1)
-                let arg_file = curpath0 . '/cscope.find_args'
+
+                let arg_file = curpath0 . '/' . s:cide_exclude_fname
+
                 if filereadable(arg_file)
-                    let find_args = join(readfile(arg_file), " ")
+                    let excl_args = ''
+
+                    for line in readfile(arg_file, '')
+                        if (strlen(line) > 0)
+                            let excl_args = excl_args . '-path "' . line . '" -prune -o '
+                        end
+                    endfor
                 else
-                    let find_args = ""
+                    let excl_args = ""
                 endif
-                let find_cmd = '"'.s:cide_shell_find . '" . ' . find_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
+                let find_cmd = '"'.s:cide_shell_find . '" . ' . excl_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
                 let find_cmd = input("Generate " . cscope_files0 . ': ' , find_cmd)
                 if (find_cmd != "")
                     let find_cmd_out = system(find_cmd)
@@ -2050,6 +2059,29 @@ function! s:RunGrepSubSub(grep_files)
         else
             "
         endif
+
+        let arg_file = s:grep_opt_dir . '/' . s:cide_exclude_fname
+
+        if filereadable(arg_file)
+            let excl_args = ' '
+
+            for line in readfile(arg_file, '')
+                let line_len = strlen(line)
+                if (line_len > 0)
+                    if (line_len >=2 && line[0] == '.' && line[1] =='/')
+                        let line = line[2:]
+                    endif
+                    let excl_args = excl_args . '-g "!' . line . '" '
+                end
+            endfor
+
+            let excl_args = input("Exclude files/folders: ", excl_args)
+            if strlen(excl_args) > 0
+                let grep_opt = grep_opt . excl_args
+            endif
+        endif
+
+
     elseif (s:cide_shell_grep == 'ag')
         if (s:grep_opt_whole == 1)
             let grep_opt = grep_opt." --word-regexp"    " -w
@@ -2857,7 +2889,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.VER\ 0\.21\ (06/06/20) :
+:menu <silent> &CIDE.VER\ 0\.22\ (06/0920) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
