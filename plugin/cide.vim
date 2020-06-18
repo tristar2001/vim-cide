@@ -241,9 +241,9 @@ function! s:InitVars()
             let path_sep = "/"
         endif
 
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --type-add "cr:include:cxx,rust" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --type-add "cxx:*.ipp" --type-add "cr:include:cxx,rust" --sort path')
     else
-        call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
+        call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|ipp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
     endif
 
@@ -428,7 +428,7 @@ function! s:RebuildCscopeSub()
                 else
                     let excl_args = ""
                 endif
-                let find_cmd = '"'.s:cide_shell_find . '" . ' . excl_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|h\\|hpp\\)\" -print"
+                let find_cmd = '"'.s:cide_shell_find . '" . ' . excl_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|ipp\\|h\\|hpp\\)\" -print"
                 let find_cmd = input("Generate " . cscope_files0 . ': ' , find_cmd)
                 if (find_cmd != "")
                     let find_cmd_out = system(find_cmd)
