@@ -2460,7 +2460,7 @@ function! s:CideSaveOptions()
     let outstr = outstr . "let s:grep_opt_icase = "  . s:grep_opt_icase . "\n"
     let outstr = outstr . "let s:grep_opt_recurse = ". s:grep_opt_recurse . "\n"
     let outstr = outstr . "let s:grep_opt_regex = "  . s:grep_opt_regex . "\n"
-    let outstr = outstr . "let s:grep_opt_ripgreprc = "  . s:grep_opt_ripgreprc . "\n"
+  " let outstr = outstr . "let s:grep_opt_ripgreprc = "  . s:grep_opt_ripgreprc . "\n"
     let outstr = outstr . "let s:cide_cscope_filespecs = '". s:cide_cscope_filespecs . "'\n"
     call s:SaveStrToFile(outstr, cide_cfg_path)
 
