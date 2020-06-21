@@ -1,0 +1,41 @@
+# Search order of ripgrep configuration file (.ripgreprc):
+#
+# (1) Under current project folder (s:grep_opt_dir): highest priority, searched
+#     first
+#
+# (2) under folder specified by "g:cide_path_ripgreprc", default to
+#     "~/.dotfiles/.ripgreprc"
+#
+# (3) Under folder specified by environment variable $RIPGREP_CONFIG_PATH
+#     (saved to g:cide_ripgrep_config_path_from_shell)
+#
+# (4) Under folder "plugin/vim-cide/" where cide.vim is located: lowest
+#     priority, searched last)
+
+# Search hidden files and directories.
+--hidden
+
+# Follow symbolic links.
+--follow
+
+# Don't respect ignore files (.gitignore, .ignore, etc.).
+--no-ignore
+
+# Don't respect ignore files (.gitignore, .ignore, etc.).
+--no-ignore
+
+--type-add
+make:*.inc
+
+--type-add
+cxx:include:cpp,c,asm,make,cmake
+
+--type-add
+cxx:*.ipp
+
+--type-add
+cxx:*.c++
+
+--type-add
+cr:include:cxx,rust
+

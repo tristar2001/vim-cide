@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.22
-" Last Modified:    06/09/2020
+" Version:          0.23
+" Last Modified:    06/20/2020
 "
 " MIT License
 " 
@@ -28,7 +28,16 @@
 if exists("g:cide_loaded")
     finish
 endif
+
+" Global flag to force load once
 let g:cide_loaded = 1
+
+" Save directory of current script (must be executed outside of functions)
+let g:cide_script_path = substitute(expand('<sfile>:~:h'), "\\", "/", "g")
+
+" Save ripgrep configuration file environment variable from shell
+let g:cide_ripgrep_config_path_from_shell = $RIPGREP_CONFIG_PATH
+
 set shellslash
 
 function! s:ConConfirm(msg, ...)
@@ -228,6 +237,8 @@ function! s:InitVars()
     call s:InitVarGlobal('cide_shell_find',     default_cide_shell_find)
     call s:InitVarGlobal('cide_shell_sort',     default_cide_shell_sort)
     call s:InitVarGlobal('cide_shell_date',     default_cide_shell_date)
+    call s:InitVarGlobal('cide_path_ripgreprc', '~/.dotfiles/.ripgreprc')
+    call s:InitVarGlobal('cide_cscope_filespecs', '[^ ]*\.\(c\|cc\|cpp\|c\+\+\|ipp\|h\|hpp\)')
 
     call s:InitVarGlobal('cide_findwin_cols_time', 19)
     call s:InitVarGlobal('cide_findwin_cols_size', 12)
@@ -241,21 +252,22 @@ function! s:InitVars()
             let path_sep = "/"
         endif
 
-        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --type-add "make:*.inc" --type-add "cxx:include:cpp,c,asm,make,cmake" --type-add "cxx:*.ipp" --type-add "cr:include:cxx,rust" --sort path')
+        call s:InitVarGlobal('cide_grep_options', ' --path-separator ' . path_sep . ' --line-number --color never --no-heading --sort path')
     else
+        echoerr "grep program " . s:cide_shell_grep . " is not supported."
         call s:InitVarGlobal('cide_grep_filespecs', ['-G "Makefile|\.(c|cpp|ipp|h|hpp|cc|mk)$"', "--cpp", "-cc", "--matlab", "--vim", "-a", '-G "\.(Po)$"', '-G "\.(d)$"'])
         call s:InitVarGlobal('cide_grep_options', '--numbers --nocolor --nogroup')
     endif
 
     call s:InitVarGlobal('cide_find_filespecs', ['-type f -name "*"', '-name "*"'])
     call s:InitVarGlobal('cide_find_options', '-maxdepth 999')
-    call s:InitVarGlobal('cide_exclude_fname','exclude.list')
+    call s:InitVarGlobal('cide_exclude_fname','.exclude.list')
 
     let s:cpo_save = &cpo
     set cpo&vim
 
     " Constant strings
-    let s:CIDE_CFG_FNAME                = '_cide.cfg'
+    let s:CIDE_CFG_FNAME                = '.cide.vim'
     let s:CSCOPE_OUT_FNAME              = 'cscope.out'
     let s:CIDE_WIN_TITLE_QUERYLIST      = "QHistory"
     let s:CIDE_WIN_TITLE_QUERYRES       = "QResult"
@@ -282,6 +294,7 @@ function! s:InitVars()
     let s:grep_opt_regex                = 0
     let s:grep_opt_files                = s:cide_grep_filespecs[0]
     let s:grep_opt_exclude              = ''
+    let s:grep_opt_ripgreprc            = ''
 
     " Load default find options
     let s:find_opt_dir                  = getcwd()
@@ -395,9 +408,11 @@ function! s:RebuildCscopeSub()
     let cscope_files0 = "cscope.files"
     let curpath0 = expand("%:p:h")
     let curpath0 = input("Build cscope.out under: ", curpath0)
+    redraw
 
     if (curpath0 != "")
         let cscope_files0 = input("cscope file list: ", cscope_files0)
+        redraw
 
         if (cscope_files0 != "")
             " Change current directory
@@ -428,8 +443,10 @@ function! s:RebuildCscopeSub()
                 else
                     let excl_args = ""
                 endif
-                let find_cmd = '"'.s:cide_shell_find . '" . ' . excl_args . " -type f -regex \"[^ ]*\\.\\(c\\|cc\\|cpp\\|ipp\\|h\\|hpp\\)\" -print"
+
+                let find_cmd = '"'.s:cide_shell_find . '" . ' . excl_args . " -type f -regex \"" . s:cide_cscope_filespecs . "\" -print"
                 let find_cmd = input("Generate " . cscope_files0 . ': ' , find_cmd)
+                redraw
                 if (find_cmd != "")
                     let find_cmd_out = system(find_cmd)
                     call s:SaveStrToFile(find_cmd_out, cscope_files) 
@@ -536,6 +553,7 @@ function! s:GetCscopeResult(cmd_num, pat, bCheckCase) " external
     if a:pat == ""
         let cmdprompt = s:GetCmdPrompt(a:cmd_num)
         let pattern = input("Find ".cmdprompt, expand("<cword>"))
+        redraw
         if pattern == ""
             return 0
         endif
@@ -1985,6 +2003,7 @@ endfunction
 
 function! s:NewSymbol(iType)
     let  newsymb = input("Enter the name of new symbol: ", expand("<cword>"))
+    redraw
     if(newsymb == "")
         return
     endif
@@ -2192,7 +2211,6 @@ endfunction
 
 function! s:DoGrep()
     call s:RunGrepSub()
-    " call s:SaveOptions()
     if s:cscope_cmd_out == ""
         return
     endif
@@ -2324,34 +2342,130 @@ function! s:InitGrepOptions()
     endif
 endfunction
 
-function! s:CideLoadOptions()
-    " Only to be loaded once
-    if strlen(s:cide_cur_cfg_path) < 3
-        " try find a config file along the parent folders
-        let cide_cfg_path = s:FindFileInParentFolders(s:CIDE_CFG_FNAME)
-        if strlen(cide_cfg_path) > 3
-            " config file found for the first time
-            let s:cide_cur_cfg_path = cide_cfg_path
-            let oldpath = s:ChangeDirectory(cide_cfg_path) " save original directory
-            exe "source " . s:CIDE_CFG_FNAME
-            call s:ChangeDirectory(oldpath) " restore original directory
+" @param create_new (optional)
+"   - if create_new==1: generate new option file if not present
+"   - if create_new==0: do not generate new option file if not present
+function! s:CideGetOptionFile(...)
+
+    let create_new = get(a:, 0, 0) " optional argument, default=0
+
+    " Never loaded before (first time)
+    let cide_cfg_dir = s:FindFileInParentFolders(s:CIDE_CFG_FNAME)
+
+    if strlen(cide_cfg_dir) > 3
+        " Found along parents
+        let cide_cfg_path = cide_cfg_dir . '/' . s:CIDE_CFG_FNAME
+    else
+        if (create_new != 0)
+            " Creating a new one in project root
+            let cide_cfg_path = s:grep_opt_dir . "/" . s:CIDE_CFG_FNAME
+        else
+            let cide_cfg_path = ''
         endif
+    end
+    return cide_cfg_path
+endfunction
+
+" Reload option
+" @param force_reload (optional)
+"   - if force_reload==1: always reload options
+"   - if force_reload==0: only reload options when s:cide_cur_cfg_path==''
+function! s:CideLoadOptions(...)
+
+    let force_reload = get(a:, 0, 0) " optional argument, default=0
+
+    if force_reload != 0
+        " Force to reload options 
+
+        if s:cide_cur_cfg_path == ''
+            let create_new = 1
+            let cide_cfg_path = s:CideGetOptionFile(create_new)
+        else
+            " Use what's used in previous load
+            let cide_cfg_path = s:cide_cur_cfg_path
+        endif
+
+        let cide_cfg_path = input('Load options from: ', cide_cfg_path, 'file')
+        redraw
+
+        if (cide_cfg_path == '')
+            call s:MsgWarning("CideLoadOption was canceled.")
+            return
+        endif
+
+    else
+        if s:cide_cur_cfg_path != ''
+            " Not first time
+            return
+        endif
+
+        " Reload options only if s:cide_cur_cfg_path=='' (first time)
+        let cide_cfg_path = s:CideGetOptionFile()
+
+        if cide_cfg_path == ''
+            " Option file not found; simply return
+            return
+        end
     endif
+
+    if !filereadable(cide_cfg_path)
+        call s:MsgError("option file ". cide_cfg_path . " does not exist.")
+        return
+    endif
+
+    " Load options
+    exe "source " . cide_cfg_path 
+
+    let s:cide_cur_cfg_path = cide_cfg_path
+
+    call s:MsgInfo("options are successfully loaded from " . cide_cfg_path . ".")
+
 endfunction
 
 function! s:CideSaveOptions()
-    if strlen(s:cide_cur_cfg_path) > 3
-        let oldpath = s:ChangeDirectory(s:cide_cur_cfg_path) " save original directory
-        let outstr = ""
-        let outstr = outstr . "let s:grep_opt_dir = '" . s:grep_opt_dir . "'\n"
-        let outstr = outstr . "let s:grep_opt_files = '". s:grep_opt_files . "'\n"
-        let outstr = outstr . "let s:grep_opt_whole = ". s:grep_opt_whole . "\n"
-        let outstr = outstr . "let s:grep_opt_icase = ". s:grep_opt_icase . "\n"
-        let outstr = outstr . "let s:grep_opt_recurse = ". s:grep_opt_recurse . "\n"
-        let outstr = outstr . "let s:grep_opt_regex = ". s:grep_opt_regex . "\n"
-        call s:SaveStrToFile(outstr, s:CIDE_CFG_FNAME)
-        call s:ChangeDirectory(oldpath) " restore original directory
+
+    if strlen(s:cide_cur_cfg_path) != ''
+        " Use what's used in previous load
+        let cide_cfg_path = s:cide_cur_cfg_path
+    else
+        let create_new = 1
+        let cide_cfg_path = s:CideGetOptionFile(create_new)
     endif
+
+    let cide_cfg_path = input("Saving options to: ", cide_cfg_path, "file")
+    redraw
+
+    if (cide_cfg_path != '')
+        if filereadable(cide_cfg_path)
+            if s:ConConfirm('"'. cide_cfg_path. '" already exists; do you want to overwrite it?', "Yes\nNo") != 1
+                " Cancel saving
+                let cide_cfg_path = ''
+            endif
+        else
+            call s:MsgInfo("creating new option file: " . cide_cfg_path . " ...")
+        endif
+    endif
+
+    if (cide_cfg_path == '')
+        call s:MsgWarning("CideSaveOption was canceled.")
+        return
+    endif
+
+    let s:cide_cur_cfg_path = cide_cfg_path
+
+    let outstr = ""
+    let outstr = outstr . "let s:grep_opt_dir = '"   . s:grep_opt_dir . "'\n"
+    let outstr = outstr . "let s:grep_opt_files = '" . s:grep_opt_files . "'\n"
+    let outstr = outstr . "let s:grep_opt_whole = "  . s:grep_opt_whole . "\n"
+    let outstr = outstr . "let s:grep_opt_icase = "  . s:grep_opt_icase . "\n"
+    let outstr = outstr . "let s:grep_opt_recurse = ". s:grep_opt_recurse . "\n"
+    let outstr = outstr . "let s:grep_opt_regex = "  . s:grep_opt_regex . "\n"
+    let outstr = outstr . "let s:grep_opt_ripgreprc = "  . s:grep_opt_ripgreprc . "\n"
+    let outstr = outstr . "let s:cide_cscope_filespecs = '". s:cide_cscope_filespecs . "'\n"
+    call s:SaveStrToFile(outstr, cide_cfg_path)
+
+    call s:MsgInfo("options are saved to " . cide_cfg_path . ".")
+
 endfunction
 
 function! s:CideSetMainWin()
@@ -2360,42 +2474,49 @@ function! s:CideSetMainWin()
     redraw
 endfunction
 
+function! RipgreprcCompletion(ArgLead, CmdLine, CursorPos)
+    return s:ripgreprc_files
+endfunction
+
 function! FileTypeCompletionGrep(ArgLead, CmdLine, CursorPos)
     return s:cide_grep_filespecs
 endfunction
 
-function! s:RunGrep()
+function! s:RunGrepImpl()
     call s:CideLoadOptions()
 
     " Get the identifier and file list from user
     let grep_pattern0 = input("Search for pattern: ", expand("<cword>"))
+    redraw
     if grep_pattern0 == ""
-        return
+        return 'canceled'
     endif
     let s:grep_pattern = grep_pattern0
 
     let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletionGrep")
+    redraw
     if grep_files0 == ""
-        return
+        return 'canceled'
     endif
     let s:grep_opt_files = grep_files0
 
     let grep_dir0 = input("Search under folder: ", s:grep_opt_dir, "dir")
+    redraw
     if grep_dir0 == ""
-        return
+        return 'canceled'
     endif
     if !isdirectory(grep_dir0)
         call s:MsgError('invalid directory "'.grep_dir0.'"')
-        return
+        return 'error'
     end
     let s:grep_opt_dir = grep_dir0
 
     let arg_file = s:grep_opt_dir . '/' . s:cide_exclude_fname
 
     if filereadable(arg_file)
-        let excl_args = ' '
-
         if (s:cide_shell_grep == 'rg')
+
+            let excl_args = ' '
 
             for line in readfile(arg_file, '')
                 let line_len = strlen(line)
@@ -2408,21 +2529,79 @@ function! s:RunGrep()
             endfor
 
             let s:grep_opt_exclude = input("Exclude files/folders: ", excl_args)
+            redraw
         endif
     endif
-
-
 
     let s:grep_repby = ""
 
     let grep_options = input("Global options: ", s:cide_grep_options)
+    redraw
+
     if grep_options == ""
-        return
+        return 'canceled'
     endif
+
+    if (s:cide_shell_grep == 'rg')
+        " Locate ripgreprc file
+        " let grep_opt = grep_opt." --debug"
+
+        let s:ripgreprc_files = []
+        let ripgreprc = s:grep_opt_dir . '/.ripgreprc'
+        if filereadable(expand(ripgreprc))
+            " (1) try .ripgreprc under s:grep_opt_dir
+            call add(s:ripgreprc_files, ripgreprc)
+        endif
+
+        if filereadable(expand(s:cide_path_ripgreprc))
+            " (2) try "s:cide_path_ripgreprc", default to .dotfiles/.ripgreprc
+            call add(s:ripgreprc_files, s:cide_path_ripgreprc)
+        endif
+
+        if filereadable(expand(g:cide_ripgrep_config_path_from_shell))
+            " (3) try g:cide_ripgrep_config_path_from_shell
+            call add(s:ripgreprc_files, g:cide_ripgrep_config_path_from_shell)
+        endif
+
+        if (1)
+            " (4) try .ripgreprc from vim-cide plugin folder
+            call add(s:ripgreprc_files, g:cide_script_path . '/.ripgreprc')
+        endif
+
+        if s:grep_opt_ripgreprc == ''
+            let ripgreprc = s:ripgreprc_files[0]
+        else
+            let ripgreprc = s:grep_opt_ripgreprc
+        endif
+
+        let ripgreprc = input("$RIPGREP_CONFIG_PATH: ", ripgreprc, 'customlist,RipgreprcCompletion')
+        redraw
+        if ripgreprc == ""
+            return 'canceled'
+        endif
+
+        if !filereadable(expand(ripgreprc))
+            call s:MsgError('invalid ripgreprc "'.ripgreprc.'"')
+            return 'error'
+        endif
+
+        let s:grep_opt_ripgreprc = ripgreprc
+
+        let $RIPGREP_CONFIG_PATH = expand(ripgreprc)
+        " echom 'RIPGREP_CONFIG_PATH=' . $RIPGREP_CONFIG_PATH
+    endif
+
     let s:cide_grep_options = grep_options
 
     call s:InitGrepOptions()
-    return
+    return 'done'
+endfunction
+
+function! s:RunGrep()
+    let ret = s:RunGrepImpl()
+    if ret == 'canceled'
+        call s:MsgWarning("Grep was canceled")
+    end
 endfunction
 
 function! s:RunGrepLast()
@@ -2717,12 +2896,14 @@ function! s:RunFind()
     call s:CideLoadOptions()
 
     let find_files0 = input("Search files: ", s:find_opt_files, "customlist,FileTypeCompletionFind")
+    redraw
     if find_files0 == ""
         return
     endif
     let s:find_opt_files = find_files0
 
     let find_dir0 = input("Search under folder: ", s:find_opt_dir, "dir")
+    redraw
     if find_dir0 == ""
         return
     endif
@@ -2733,6 +2914,7 @@ function! s:RunFind()
     let s:find_opt_dir = find_dir0
 
     let find_options = input("Global options: ", s:cide_find_options)
+    redraw
     if find_options == ""
         return
     endif
@@ -2830,6 +3012,7 @@ command! -nargs=* CscopeRebuild             call <SID>CscopeRebuild()
 command! -nargs=* Appendhist                call <SID>LoadHist(1)
 command! -nargs=* Savehist                  call <SID>SaveHist()
 command! -nargs=* CideToggle                call <SID>CideToggle()
+command! -nargs=* CideLoadOptions           call <SID>CideLoadOptions(1)
 command! -nargs=* CideSaveOptions           call <SID>CideSaveOptions()
 command! -nargs=* CideSetMainWin            call <SID>CideSetMainWin()
 command! -nargs=* Icalleetree               call <SID>NewSymbol(0)
@@ -2874,7 +3057,8 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CideHistory.&Append<TAB>a :Appendhist<CR>
 :menu <silent> &CIDE.CideHistory.&Save<TAB>s   :Savehist<CR>
 :menu <silent> &CIDE.CideToggle             :CideToggle<CR>
-:menu <silent> &CIDE.CideSaveOption         :CideSaveOptions<CR>
+:menu <silent> &CIDE.CideLoadOptions        :CideLoadOptions<CR>
+:menu <silent> &CIDE.CideSaveOptions        :CideSaveOptions<CR>
 :menu <silent> &CIDE.CideSetMainWin         :CideSetMainWin<CR>
 :menu <silent> &CIDE.CscopeRebuild          :CscopeRebuild<CR>
 :menu <silent> &CIDE.CscopeCase             :CscopeCase<CR>
@@ -2892,7 +3076,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.VER\ 0\.22\ (06/0920) :
+:menu <silent> &CIDE.Version\ 0\.23\ (06/20/20) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
