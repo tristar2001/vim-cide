@@ -86,8 +86,8 @@ function! s:MsgWarning(msg, ...)
     if has('gui_running') && nogui == 0
         call confirm(' '.a:msg.' ')
     else
-        echohl WarningMsg
-        echom ' '.a:msg.' '
+        echohl MoreMsg
+        echom '[C-IDE-WARNING] '.a:msg.' '
         echohl None
     end
 endfunction
@@ -473,7 +473,7 @@ function! s:RebuildCscopeSub()
         endif
     endif
 
-    call s:MsgWarning("Build was canceled")
+    call s:MsgWarning("build was canceled.")
     let s:cide_cur_cscope_out_dir = ""
     return 0
 
@@ -492,11 +492,15 @@ endfunction
 
 function! s:CheckCscopeConnection()
     if (strlen(s:cide_cur_cscope_out_dir) > 0)
-        return 1
+        if filereadable(s:cide_cur_cscope_out_dir . '/' . s:CSCOPE_OUT_FNAME)
+            return 1
+        end
+        " cscope.out has been removed: invalidate s:cide_cur_cscope_out_dir
+        let s:cide_cur_cscope_out_dir = ''
     endif
     let curpath = s:FindFileInParentFolders(s:CSCOPE_OUT_FNAME)
     if strlen(curpath) <= 3
-        call s:MsgError(s:CSCOPE_OUT_FNAME." does not exist.")
+        call s:MsgWarning(s:CSCOPE_OUT_FNAME." does not exist.")
         return s:RebuildCscopeSub()
     else
         let s:cide_cur_cscope_out_dir = curpath
@@ -592,6 +596,9 @@ endfunction
 
 " Run the specified cscope command
 function! s:RunCscope(cmd_num, patt)
+
+    call s:CideLoadOptions()
+
     let retcode = s:GetCscopeResult(a:cmd_num, a:patt, 1)
     if (retcode==0)
         return
@@ -1162,6 +1169,9 @@ function! s:CB_UpdateQuery()
 endfunction
 
 function! s:CscopeRebuild()
+
+    call s:CideLoadOptions()
+
     "  silent! call s:ExecVimCmdOutput("cs show")
     "  if (strpart(@z,0,2)!="no")
     "    silent! call s:ExecVimCmdOutput("cs kill -1")
@@ -2414,7 +2424,15 @@ function! s:CideLoadOptions(...)
     endif
 
     " Load options
-    exe "source " . cide_cfg_path 
+    "       Note: exe "source " . cide_cfg_path ('source' wont work because
+    "       changes on script local variables, i.e., s:*, cannot be seen by
+    "       caller script)
+    for line in readfile(cide_cfg_path, '')
+        let line_len = strlen(line)
+        if (line_len > 0 && line[0] != '"')
+            exec line
+        end
+    endfor
 
     let s:cide_cur_cfg_path = cide_cfg_path
 
@@ -2454,7 +2472,8 @@ function! s:CideSaveOptions()
     let s:cide_cur_cfg_path = cide_cfg_path
 
     let outstr = ""
-    let outstr = outstr . "let s:grep_opt_dir = '"   . s:grep_opt_dir . "'\n"
+  " let outstr = outstr . "let s:grep_opt_dir = '"   . s:grep_opt_dir . "'\n"
+    let outstr = outstr . "let s:testvar1 = '" . s:grep_opt_files . "'\n"
     let outstr = outstr . "let s:grep_opt_files = '" . s:grep_opt_files . "'\n"
     let outstr = outstr . "let s:grep_opt_whole = "  . s:grep_opt_whole . "\n"
     let outstr = outstr . "let s:grep_opt_icase = "  . s:grep_opt_icase . "\n"
@@ -2600,7 +2619,7 @@ endfunction
 function! s:RunGrep()
     let ret = s:RunGrepImpl()
     if ret == 'canceled'
-        call s:MsgWarning("Grep was canceled")
+        call s:MsgWarning("grep was canceled.")
     end
 endfunction
 
