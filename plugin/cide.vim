@@ -2124,7 +2124,7 @@ function! s:RunGrepSubSub(grep_files)
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.s:grep_opt_exclude.' '.filespec.' '.pattern
+    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.s:grep_opt_exclude.' '.filespec.' -- '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
