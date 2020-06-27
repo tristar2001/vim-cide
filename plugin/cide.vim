@@ -1,6 +1,6 @@
 " Description:      C-IDE vim plugin
-" Version:          0.23
-" Last Modified:    06/20/2020
+" Version:          0.27
+" Last Modified:    06/27/2020
 "
 " MIT License
 " 
@@ -286,24 +286,19 @@ function! s:InitVars()
     let s:cide_cur_cfg_path             = ""
 
     " Load default grep options
-    let s:grep_opt_dir                  = getcwd()
     let s:grep_opt_whole                = 0
     let s:grep_opt_icase                = 1
     let s:grep_opt_recurse              = 1
     let s:grep_opt_hidden               = 0
     let s:grep_opt_regex                = 0
-    let s:grep_opt_files                = s:cide_grep_filespecs[0]
     let s:grep_opt_exclude              = ''
-    let s:grep_opt_ripgreprc            = ''
 
     " Load default find options
-    let s:find_opt_dir                  = getcwd()
     " let s:find_opt_whole              = 0
     " let s:find_opt_icase              = 1
     " let s:find_opt_recurse            = 1
     " let s:find_opt_hidden             = 0
     " let s:find_opt_regex              = 0
-    let s:find_opt_files                = s:cide_find_filespecs[0]
     
     " Initialize default runtime variables
     let s:cide_cur_query_type           = 'grep'
@@ -2049,22 +2044,76 @@ function! s:GetDef()
     return s:CTcounts
 endfunction
 
+function! s:GrepOptFilespecInit()
+    let dict_type =  {
+    \   'c'             : 'cxx'        ,
+    \   'cpp'           : 'cxx'        ,
+    \   'javascript'    : 'js'         ,
+    \   'proto'         : 'protobuf'   ,
+    \   'python'        : 'py'         ,
+    \   'text'          : 'txt'        ,
+    \}
+    let vim_ft = &filetype
+    if vim_ft == ''
+        " unknown type, go by extension name
+        let fext = expand('%:e')
+        if fext == '' " no extension
+            let rg_fspec = '-g "*"'
+        else
+            let rg_fspec = '-g "*.' . fext . '"'
+        endif
+    else " vim_ft ~= ''
+        let rg_ft = get(dict_type, vim_ft, '')
+        if (rg_ft == '')
+            let rg_fspec = '-t' . vim_ft
+        else
+            let rg_fspec = '-t' . rg_ft
+        endif
+    end
+    return rg_fspec
+endfunction
+
+function! s:GrepOptFilespecGet()
+    if !exists("s:grep_opt_filespec")
+        let s:grep_opt_filespec = s:GrepOptFilespecInit()
+    endif
+    return s:grep_opt_filespec
+endfunction
+
+function! s:GrepOptFilespecSet(newspec)
+    let s:grep_opt_filespec = a:newspec
+endfunction
+
 function! s:RunGrepSub()
     let s:cscope_cmd_out = ""
     " call s:MsgInfo(expand('<sfile>'))
     " call s:MsgInfo(substitute(expand('<sfile>'), '.*\(\.\.\|\s\)', '', ''))
 
-    let ret = s:RunGrepSubSub(s:grep_opt_files)
+    let ret = s:RunGrepSubSub(s:GrepOptFilespecGet())
     if s:cscope_cmd_out == ""
         call s:MsgError("pattern \"" . s:grep_pattern . "\" was not found")
         return 0
     endif
 endfunction
 
+function! s:GrepOptDirGet()
+    if !exists("s:grep_opt_dir")
+        let s:grep_opt_dir = expand('%:p:h')
+    endif
+    return s:grep_opt_dir
+endfunction
+
+function! s:GrepOptDirSet(newdir)
+    let s:grep_opt_dir = a:newdir
+endfunction
+
 function! s:RunGrepSubSub(grep_files)
     let grep_opt    = s:cide_grep_options
 
     if (s:cide_shell_grep == 'rg')
+
+        let $RIPGREP_CONFIG_PATH = expand(s:GrepOptRipgreprcGet())
+
         if (s:grep_opt_whole == 1)
             let grep_opt = grep_opt." --word-regexp"    " -w
         else
@@ -2131,7 +2180,7 @@ function! s:RunGrepSubSub(grep_files)
     endif
 
     let s:cscope_cmd_out = ''
-    let oldpath = s:ChangeDirectory(s:grep_opt_dir) " save original directory
+    let oldpath = s:ChangeDirectory(s:GrepOptDirGet()) " save original directory
     let s:cscope_cmd_out = system(cmd)
     call s:ChangeDirectory(oldpath) " restore original directory
 
@@ -2215,7 +2264,7 @@ function! s:AfterQuery(pat, cmdname)
                 \  s:grep_opt_name_regex_{s:grep_opt_regex}.
                 \  s:grep_opt_name_hidden_{s:grep_opt_hidden}
 
-    call s:InsertQuery(1, a:cmdname." ".casechar, a:pat, 0, tmpfile, s:grep_opt_dir)
+    call s:InsertQuery(1, a:cmdname." ".casechar, a:pat, 0, tmpfile, s:GrepOptDirGet())
     call s:GotoCodeWindow()
 endfunction
 
@@ -2368,12 +2417,24 @@ function! s:CideGetOptionFile(...)
     else
         if (create_new != 0)
             " Creating a new one in project root
-            let cide_cfg_path = s:grep_opt_dir . "/" . s:CIDE_CFG_FNAME
+            let cide_cfg_path = s:GrepOptDirGet() . "/" . s:CIDE_CFG_FNAME
         else
             let cide_cfg_path = ''
         endif
     end
     return cide_cfg_path
+endfunction
+
+function! s:GrepOptRipgreprcGet()
+    if !exists("s:grep_opt_ripgreprc")
+        let ripgreprc_list = s:RipgreprcGetList()
+        let s:grep_opt_ripgreprc = ripgreprc_list[0]
+    endif
+    return s:grep_opt_ripgreprc
+endfunction
+
+function! s:GrepOptRipgreprcSet(newrc)
+    let s:grep_opt_ripgreprc = a:newrc
 endfunction
 
 " Reload option
@@ -2434,10 +2495,18 @@ function! s:CideLoadOptions(...)
         end
     endfor
 
-    let s:cide_cur_cfg_path = cide_cfg_path
+    " Update s:cide_cur_cfg_path and s:grep_opt_dir
+    call s:CideCfgPathSet(cide_cfg_path)
 
     call s:MsgInfo("options are successfully loaded from " . cide_cfg_path . ".")
 
+endfunction
+
+function! s:CideCfgPathSet(cide_cfg_path)
+    let s:cide_cur_cfg_path = a:cide_cfg_path
+    let sepidx = strridx(a:cide_cfg_path, "/")
+    let cfg_dir = strpart(a:cide_cfg_path, 0, sepidx)
+    call s:GrepOptDirSet(cfg_dir)
 endfunction
 
 function! s:CideSaveOptions()
@@ -2469,18 +2538,18 @@ function! s:CideSaveOptions()
         return
     endif
 
-    let s:cide_cur_cfg_path = cide_cfg_path
+    " Update s:cide_cur_cfg_path and s:grep_opt_dir
+    call s:CideCfgPathSet(cide_cfg_path)
 
     let outstr = ""
-  " let outstr = outstr . "let s:grep_opt_dir = '"   . s:grep_opt_dir . "'\n"
-    let outstr = outstr . "let s:testvar1 = '" . s:grep_opt_files . "'\n"
-    let outstr = outstr . "let s:grep_opt_files = '" . s:grep_opt_files . "'\n"
-    let outstr = outstr . "let s:grep_opt_whole = "  . s:grep_opt_whole . "\n"
-    let outstr = outstr . "let s:grep_opt_icase = "  . s:grep_opt_icase . "\n"
-    let outstr = outstr . "let s:grep_opt_recurse = ". s:grep_opt_recurse . "\n"
-    let outstr = outstr . "let s:grep_opt_regex = "  . s:grep_opt_regex . "\n"
-  " let outstr = outstr . "let s:grep_opt_ripgreprc = "  . s:grep_opt_ripgreprc . "\n"
-    let outstr = outstr . "let s:cide_cscope_filespecs = '". s:cide_cscope_filespecs . "'\n"
+    let outstr = outstr . "\" let s:grep_opt_dir = '"   . s:GrepOptDirGet() . "'\n"
+    let outstr = outstr . "\" let s:grep_opt_filespec = '" . s:GrepOptFilespecGet() . "'\n"
+    let outstr = outstr . "\" let s:grep_opt_whole = "  . s:grep_opt_whole . "\n"
+    let outstr = outstr . "\" let s:grep_opt_icase = "  . s:grep_opt_icase . "\n"
+    let outstr = outstr . "\" let s:grep_opt_recurse = ". s:grep_opt_recurse . "\n"
+    let outstr = outstr . "\" let s:grep_opt_regex = "  . s:grep_opt_regex . "\n"
+    let outstr = outstr . "\" let s:grep_opt_ripgreprc = "  . s:grep_opt_ripgreprc . "\n"
+    let outstr = outstr . "\" let s:cide_cscope_filespecs = '". s:cide_cscope_filespecs . "'\n"
     call s:SaveStrToFile(outstr, cide_cfg_path)
 
     call s:MsgInfo("options are saved to " . cide_cfg_path . ".")
@@ -2494,11 +2563,38 @@ function! s:CideSetMainWin()
 endfunction
 
 function! RipgreprcCompletion(ArgLead, CmdLine, CursorPos)
-    return s:ripgreprc_files
+    return s:ripgreprc_completion_list
 endfunction
 
 function! FileTypeCompletionGrep(ArgLead, CmdLine, CursorPos)
     return s:cide_grep_filespecs
+endfunction
+
+function! s:RipgreprcGetList()
+    let ripgreprc_list = []
+    let ripgreprc = s:GrepOptDirGet() . '/.ripgreprc'
+    if filereadable(expand(ripgreprc))
+        " (1) try .ripgreprc under s:GrepOptDirGet()
+        call add(ripgreprc_list, ripgreprc)
+    endif
+
+    if filereadable(expand(s:cide_path_ripgreprc))
+        " (2) try "s:cide_path_ripgreprc", default to .dotfiles/.ripgreprc
+        call add(ripgreprc_list, s:cide_path_ripgreprc)
+    endif
+
+    if filereadable(expand(g:cide_ripgrep_config_path_from_shell))
+        " (3) try g:cide_ripgrep_config_path_from_shell
+        call add(ripgreprc_list, g:cide_ripgrep_config_path_from_shell)
+    endif
+
+    if (1)
+        " (4) try .ripgreprc from vim-cide plugin folder
+        call add(ripgreprc_list, g:cide_script_path . '/.ripgreprc')
+    endif
+
+    return ripgreprc_list
+
 endfunction
 
 function! s:RunGrepImpl()
@@ -2512,14 +2608,14 @@ function! s:RunGrepImpl()
     endif
     let s:grep_pattern = grep_pattern0
 
-    let grep_files0 = input("Search in files: ", s:grep_opt_files, "customlist,FileTypeCompletionGrep")
+    let grep_files0 = input("Search in files: ", s:GrepOptFilespecGet(), "customlist,FileTypeCompletionGrep")
     redraw
     if grep_files0 == ""
         return 'canceled'
     endif
-    let s:grep_opt_files = grep_files0
+    call s:GrepOptFilespecSet(grep_files0)
 
-    let grep_dir0 = input("Search under folder: ", s:grep_opt_dir, "dir")
+    let grep_dir0 = input("Search under folder: ", s:GrepOptDirGet(), "dir")
     redraw
     if grep_dir0 == ""
         return 'canceled'
@@ -2528,9 +2624,10 @@ function! s:RunGrepImpl()
         call s:MsgError('invalid directory "'.grep_dir0.'"')
         return 'error'
     end
-    let s:grep_opt_dir = grep_dir0
 
-    let arg_file = s:grep_opt_dir . '/' . s:cide_exclude_fname
+    call s:GrepOptDirSet(grep_dir0)
+
+    let arg_file = s:GrepOptDirGet() . '/' . s:cide_exclude_fname
 
     if filereadable(arg_file)
         if (s:cide_shell_grep == 'rg')
@@ -2562,38 +2659,10 @@ function! s:RunGrepImpl()
     endif
 
     if (s:cide_shell_grep == 'rg')
-        " Locate ripgreprc file
-        " let grep_opt = grep_opt." --debug"
-
-        let s:ripgreprc_files = []
-        let ripgreprc = s:grep_opt_dir . '/.ripgreprc'
-        if filereadable(expand(ripgreprc))
-            " (1) try .ripgreprc under s:grep_opt_dir
-            call add(s:ripgreprc_files, ripgreprc)
-        endif
-
-        if filereadable(expand(s:cide_path_ripgreprc))
-            " (2) try "s:cide_path_ripgreprc", default to .dotfiles/.ripgreprc
-            call add(s:ripgreprc_files, s:cide_path_ripgreprc)
-        endif
-
-        if filereadable(expand(g:cide_ripgrep_config_path_from_shell))
-            " (3) try g:cide_ripgrep_config_path_from_shell
-            call add(s:ripgreprc_files, g:cide_ripgrep_config_path_from_shell)
-        endif
-
-        if (1)
-            " (4) try .ripgreprc from vim-cide plugin folder
-            call add(s:ripgreprc_files, g:cide_script_path . '/.ripgreprc')
-        endif
-
-        if s:grep_opt_ripgreprc == ''
-            let ripgreprc = s:ripgreprc_files[0]
-        else
-            let ripgreprc = s:grep_opt_ripgreprc
-        endif
-
-        let ripgreprc = input("$RIPGREP_CONFIG_PATH: ", ripgreprc, 'customlist,RipgreprcCompletion')
+        " Get list of ripgreprc files (for customlist) in order of priority
+        " - used by RipgreprcCompletion()
+        let s:ripgreprc_completion_list = s:RipgreprcGetList()
+        let ripgreprc = input("$RIPGREP_CONFIG_PATH: ", s:GrepOptRipgreprcGet(), 'customlist,RipgreprcCompletion')
         redraw
         if ripgreprc == ""
             return 'canceled'
@@ -2604,10 +2673,7 @@ function! s:RunGrepImpl()
             return 'error'
         endif
 
-        let s:grep_opt_ripgreprc = ripgreprc
-
-        let $RIPGREP_CONFIG_PATH = expand(ripgreprc)
-        " echom 'RIPGREP_CONFIG_PATH=' . $RIPGREP_CONFIG_PATH
+        call s:GrepOptRipgreprcSet(ripgreprc)
     endif
 
     let s:cide_grep_options = grep_options
@@ -2673,6 +2739,28 @@ function! s:FindWinPreview(fname, key)
     end
 endfunction
 
+function! s:FindOptDirGet()
+    if !exists("s:find_opt_dir")
+        let s:find_opt_dir = expand('%:p:h')
+    endif
+    return s:find_opt_dir
+endfunction
+
+function! s:FindOptDirSet(newdir)
+    let s:find_opt_dir = a:newdir
+endfunction
+
+function! s:FindOptFilespecGet()
+    if !exists("s:find_opt_filespec")
+        let s:find_opt_filespec = s:cide_find_filespecs[0]
+    endif
+    return s:find_opt_filespec
+endfunction
+
+function! s:FindOptFilespecSet(newspec)
+    let s:find_opt_filespec = a:newspec
+endfunction
+
 function! s:CB_FindWinViewCurrentItem(key)
     let curline = getline(".")
 
@@ -2680,7 +2768,7 @@ function! s:CB_FindWinViewCurrentItem(key)
     let fname = substitute(parts[0], '^\s*\(.\{-}\)\s*$', '\1', '')
     let path_rel = substitute(parts[1], '^\s*\(.\{-}\)\s*$', '\1', '')
     let fname_rel = path_rel . '/' . fname 
-    let fname_abs = s:find_opt_dir . '/' . fname_rel
+    let fname_abs = s:FindOptDirGet() . '/' . fname_rel
     if s:IsWinXX()
         let fname_abs = substitute(fname_abs, '/', '\\', 'g')
     endif
@@ -2703,7 +2791,7 @@ function! s:CB_FindWinViewCurrentItem(key)
     elseif (a:key == 'v' || a:key == 'V' || a:key == '')
         call s:FindWinPreview(fname_abs, a:key)
     elseif (a:key == 'e' || a:key == 'E')
-        call s:OpenViewFile(fname_rel, 1, s:find_opt_dir) 
+        call s:OpenViewFile(fname_rel, 1, s:FindOptDirGet()) 
         " Back to findwin
         call s:Win_GotoId(s:cide_winid_findwin)
     elseif (a:key == 'g')
@@ -2837,10 +2925,13 @@ function! s:RunFindSub()
     "     2019-11-25 21:33:08 | 6012           | o.txt                | .
     " let fmt2 = '%-14s | %-20f'
     let fmt2 = '%-' . s:cide_findwin_cols_size . 's | %-' . s:cide_findwin_cols_name . 'f'
-    let cmd = '"'.s:cide_shell_find.'" . ' . s:cide_find_options .' '.s:find_opt_files . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS | ' . fmt2 . ' | %h\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
+    let cmd = '"'.s:cide_shell_find.'" . ' . s:cide_find_options .' '
+    let cmd = cmd . s:FindOptFilespecGet()
+    let cmd = cmd . ' -printf "%TY-%Tm-%Td %TH:%TM:%.2TS | '
+    let cmd = cmd . fmt2 . ' | %h\n" | "' . s:cide_shell_sort . '" -r +1 -2 --ignore-case'
 
     " echom cmd
-    let oldpath = s:ChangeDirectory(s:find_opt_dir) " save original directory
+    let oldpath = s:ChangeDirectory(s:FindOptDirGet()) " save original directory
     let s:cscope_cmd_out_find = system(cmd)
     call s:ChangeDirectory(oldpath) " restore original directory
 
@@ -2888,7 +2979,7 @@ function! s:RunFindSub()
     "     " sort
     " endif
     let nLines = line("$")
-    let str = ' >>> ' . nLines . ' files were found under "'. s:find_opt_dir . '"'
+    let str = ' >>> ' . nLines . ' files were found under "'. s:FindOptDirGet() . '"'
     " call append(0, str)
     " call append(1, '[v]Modified Time    [ ]Size        [ ]Name')
  "   " silent! exec "%s/\r//g"
@@ -2914,14 +3005,14 @@ endfunction
 function! s:RunFind()
     call s:CideLoadOptions()
 
-    let find_files0 = input("Search files: ", s:find_opt_files, "customlist,FileTypeCompletionFind")
+    let find_files0 = input("Search files: ", s:FindOptFilespecGet(), "customlist,FileTypeCompletionFind")
     redraw
     if find_files0 == ""
         return
     endif
-    let s:find_opt_files = find_files0
+    call s:FindOptFilespecSet(find_files0)
 
-    let find_dir0 = input("Search under folder: ", s:find_opt_dir, "dir")
+    let find_dir0 = input("Search under folder: ", s:FindOptDirGet(), "dir")
     redraw
     if find_dir0 == ""
         return
@@ -2930,7 +3021,7 @@ function! s:RunFind()
         call s:MsgError('invalid directory "'.find_dir0.'"')
         return
     end
-    let s:find_opt_dir = find_dir0
+    call s:FindOptDirSet(find_dir0)
 
     let find_options = input("Global options: ", s:cide_find_options)
     redraw
@@ -3095,7 +3186,7 @@ nmap <Leader>e  :Icalleetree<CR>
 :menu <silent> &CIDE.CTDeleteUnder          :DeleteUnder<CR>
 :menu <silent> &CIDE.CTUniqueName           :MyUniqueNames<CR>
 :menu <silent> &CIDE.-SepVersion-           :
-:menu <silent> &CIDE.Version\ 0\.23\ (06/20/20) :
+:menu <silent> &CIDE.Version\ 0\.27\ (06/27/20) :
 
 " restore 'cpo'
 let &cpo = s:cpo_save
