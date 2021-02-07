@@ -3098,7 +3098,7 @@ function! Cide_status_b()
     end
 endfunction
 
-let g:airline_section_b = '%{Cide_status_b()}'
+" let g:airline_section_b = '%{Cide_status_b()}'
 
 " Define set of make commands
 command! -nargs=* Imake                     call <SID>MyMake("")
