@@ -2173,7 +2173,7 @@ function! s:RunGrepSubSub(grep_files)
     let filespec = a:grep_files
 
     "  let cmd = "grex ".pattern." . ".a:grep_files.grep_opt
-    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.s:grep_opt_exclude.' '.filespec.' -- '.pattern
+    let cmd = '"' . s:cide_shell_grep.'" '.grep_opt.' '.filespec.' '.s:grep_opt_exclude.' -- '.pattern
 
     if (s:grep_repby != "")
         let cmd = cmd . " ".s:grep_repby
@@ -2181,6 +2181,9 @@ function! s:RunGrepSubSub(grep_files)
 
     let s:cscope_cmd_out = ''
     let oldpath = s:ChangeDirectory(s:GrepOptDirGet()) " save original directory
+
+    " echomsg cmd
+
     let s:cscope_cmd_out = system(cmd)
     call s:ChangeDirectory(oldpath) " restore original directory
 
@@ -2629,10 +2632,9 @@ function! s:RunGrepImpl()
 
     let arg_file = s:GrepOptDirGet() . '/' . s:cide_exclude_fname
 
+    let excl_args = '-g "!**/.git/*" '
     if filereadable(arg_file)
         if (s:cide_shell_grep == 'rg')
-
-            let excl_args = ' '
 
             for line in readfile(arg_file, '')
                 let line_len = strlen(line)
@@ -2640,14 +2642,14 @@ function! s:RunGrepImpl()
                     if (line_len >=2 && line[0] == '.' && line[1] =='/')
                         let line = line[2:]
                     endif
-                    let excl_args = excl_args . '-g "!' . line . '" '
+                    let excl_args = excl_args . ' -g "!' . line . '" '
                 end
             endfor
 
-            let s:grep_opt_exclude = input("Exclude files/folders: ", excl_args)
-            redraw
         endif
     endif
+    let s:grep_opt_exclude = input("Exclude files/folders: ", excl_args)
+    redraw
 
     let s:grep_repby = ""
 
